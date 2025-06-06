@@ -38,7 +38,7 @@ namespace MiniLang.Interpreter
                 var currentToken = tokens[i];
                 var grammarAnalyser = Validator.ResolveAnalyser(currentToken);
 
-                // If a grammar analyser requires a body (via RequiresBody), look for the next scope
+                // If a grammar analyser requires a body , look for the next scope
                 if (grammarAnalyser != null && grammarAnalyser.GetType().GetCustomAttributes(typeof(RequiresBody), true).FirstOrDefault() is not null)
                 {
                     int scopeIndex = -1;
