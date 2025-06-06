@@ -1,2 +1,2 @@
-﻿give x
-give "Done!"
+﻿give x;
+give "Done!";

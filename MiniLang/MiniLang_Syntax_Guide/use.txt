@@ -1,2 +1,2 @@
-﻿use time
-use console
+﻿use "time";
+use "console";
