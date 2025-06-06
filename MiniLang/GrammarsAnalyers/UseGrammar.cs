@@ -55,7 +55,7 @@ namespace MiniLang.GrammarsAnalyers
             var tokensFromFile = Tokenizer.Tokenize(fileSource);
             var parsedTokens = Parser.Parser.Parse(tokensFromFile);
 
-           var Tokens =  grammarInterpreter.Interpret(parsedTokens,scopeObjectValueManager,expressionGrammarAnalyser); // run it
+           var Tokens =  grammarInterpreter.Interpret(parsedTokens,scopeObjectValueManager,expressionGrammarAnalyser); // builds the token from the source file
 
             return new Token(TokenType.Keyword, TokenOperation.@use,TokenTree.Single, new UseSyntaxObject(path, Tokens));
         }
