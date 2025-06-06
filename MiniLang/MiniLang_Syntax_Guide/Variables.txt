@@ -1,0 +1,14 @@
+﻿
+make x = 10;
+make name = "Nova";
+make flag =  5 /5;
+{
+make x = 10;
+make name = "Nova";
+make flag =  5 /5;
+{
+make x = 10;
+make name = "Nova";
+make flag =  5 /5;
+}
+}

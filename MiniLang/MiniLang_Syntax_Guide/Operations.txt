@@ -1,0 +1,17 @@
+﻿make sum = 5 + 3;
+make diff = 9 - 4;
+make mult = 2 * 6;
+make div = 10 / 2;
+make power = 3 ^ 2;
+make mod = 7 % 3;
+
+
+
+make combo = 1 & 1;
+make either = 0 | 1;
+
+
+make check1 = eq 4 4     ;  
+make check2 = neq 5 3   ;   
+make low = lt 2 9       ;   
+make high = gt 10 3     ;    
