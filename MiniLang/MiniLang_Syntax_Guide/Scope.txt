@@ -1,0 +1,16 @@
+@example of Scopes@
+@they both result in the same token Called <Scope>
+
+:
+  <scope>
+  :
+      <new child scope>
+  done
+done
+
+{
+  <scope>
+  {
+    <new child scope>
+  }
+}
