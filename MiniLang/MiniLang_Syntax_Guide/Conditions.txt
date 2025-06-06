@@ -1,21 +1,23 @@
 ﻿if (x gt 5) :
     say "x is big";
 else
-    say "x is small":;
+    say "x is small";
 done
 
 
 if  (name eq "Nova"):
+<Scope>
     {
+<Scope Scope>
         say "Welcome!";
         if (x lt 3) :
-            say "You're early":
+            say "You're early";
         else
-            say "You're late":;
+            say "You're late";
         done
     }
-else
-    say "Access denied":;
+else              <Scope Scope>
+    say "Access denied";
 done
 
 @MultLan
@@ -24,5 +26,7 @@ if (<expression>):
     <actions>
 }
 else
-    <expression>
+{
+        <expression>
+}
 done
