@@ -2,6 +2,7 @@
 using MiniLang.Interpreter;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects.Make;
 using MiniLang.TokenObjects;
 using System;
@@ -61,7 +62,9 @@ namespace MiniLang.GrammarsAnalyers
             return true;
         }
 
-        public Token BuildNode(Token[] tokens,ScopeObjectValueManager objectValueManager, ExpressionGrammarAnalyser expressionGrammar
+        public Token BuildNode(Token[] tokens,ScopeObjectValueManager objectValueManager,
+             ExpressionGrammarAnalyser expressionGrammar,
+             FunctionDeclarationManager FunctionDeclarationManager
             , IGrammarInterpreter grammarInterpreter, int line)
         {
             string identifier = (string)tokens[1].Value;

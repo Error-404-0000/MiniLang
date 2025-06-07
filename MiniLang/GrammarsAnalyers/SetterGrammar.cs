@@ -3,6 +3,7 @@ using MiniLang.Interfaces;
 using MiniLang.Interpreter;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
@@ -12,14 +13,14 @@ using System.Text;
 namespace MiniLang.GrammarsAnalyers
 {
     [TriggerTokenType(TriggerType.Type)]
-    public class SetterGrammar : IGrammarAnalyser,IDebugger
+    public class SetterGrammar : IGrammarAnalyser, IDebugger
     {
         public string GrammarName => "setter operation";
 
         public TokenOperation[] TriggerTokensOperator => [   TokenOperation.SETTER,
             TokenOperation.SETTERAddOperation,
-            TokenOperation.SETTERSubtractOperation]; 
-        public TokenType[] TriggerTokenTypes => [TokenType.Identifier,TokenType.SETTERS];
+            TokenOperation.SETTERSubtractOperation];
+        public TokenType[] TriggerTokenTypes => [TokenType.Identifier, TokenType.SETTERS];
 
         public bool RequiresTermination => true;
 
@@ -54,6 +55,7 @@ namespace MiniLang.GrammarsAnalyers
             Token[] tokens,
             ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
             int line)
         {

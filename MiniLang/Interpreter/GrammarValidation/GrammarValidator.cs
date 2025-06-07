@@ -3,6 +3,7 @@ using MiniLang.Attributes.GrammarAttribute;
 using MiniLang.Interfaces;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
@@ -31,7 +32,8 @@ namespace MiniLang.Interpreter
         /// <summary>
         /// Analyzes the given tokens using the appropriate grammar handler.
         /// </summary>
-        public GrammarAnalysisResult Analyse(Token[] tokens,ScopeObjectValueManager scopeStack, ExpressionGrammarAnalyser expressionGrammar, IGrammarInterpreter IGrammarInterpreter, int line)
+        public GrammarAnalysisResult Analyse(Token[] tokens,ScopeObjectValueManager scopeStack, ExpressionGrammarAnalyser expressionGrammar,
+            FunctionDeclarationManager FunctionDeclarationManager, IGrammarInterpreter IGrammarInterpreter, int line)
         {
             if (tokens == null || tokens.Length == 0)
             {
@@ -56,7 +58,7 @@ namespace MiniLang.Interpreter
                 return GrammarAnalysisResult.Error(message ?? "[Grammar Error] Unknown grammar issue.");
             }
 
-            var node = analyser.BuildNode(tokens, scopeStack,expressionGrammar, IGrammarInterpreter, line);
+            var node = analyser.BuildNode(tokens, scopeStack,expressionGrammar, FunctionDeclarationManager, IGrammarInterpreter, line);
             return GrammarAnalysisResult.Success(node);
         }
 

@@ -1,6 +1,7 @@
 ﻿using MiniLang.Interfaces;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.TokenObjects;
 using System;
 using System.Linq;
@@ -35,6 +36,7 @@ namespace MiniLang.GrammarsAnalyers
         public Token BuildNode(Token[] tokens,
             ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
             int line)
         {

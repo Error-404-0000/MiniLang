@@ -3,6 +3,7 @@ using MiniLang.Interfaces;
 using MiniLang.Interpreter;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects.Condition;
 using MiniLang.TokenObjects;
 using System;
@@ -63,7 +64,8 @@ namespace MiniLang.GrammarsAnalyers
             return false;
         }
 
-        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, IGrammarInterpreter grammarInterpreter, int line)
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
+        FunctionDeclarationManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int line)
         {
             if (tokens.Length < 2)
                 throw new ArgumentException("Invalid token length for 'if' grammar.");
@@ -86,12 +88,12 @@ namespace MiniLang.GrammarsAnalyers
 
                 if (elseStartIndex != -1)
                 {
-                    body = grammarInterpreter.Interpret(scopeTokens.Take(elseStartIndex).ToList(), scopeObjectValueManager, expressionGrammarAnalyser);
-                    elseBody = grammarInterpreter.Interpret(scopeTokens.Skip(elseStartIndex+1).ToList(), scopeObjectValueManager, expressionGrammarAnalyser);
+                    body = grammarInterpreter.Interpret(scopeTokens.Take(elseStartIndex).ToList(), scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser);
+                    elseBody = grammarInterpreter.Interpret(scopeTokens.Skip(elseStartIndex+1).ToList(), scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser);
                 }
                 else
                 {
-                    body = grammarInterpreter.Interpret(scopeTokens.ToList(), scopeObjectValueManager, expressionGrammarAnalyser);
+                    body = grammarInterpreter.Interpret(scopeTokens.ToList(), scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser);
                 }
             }
 

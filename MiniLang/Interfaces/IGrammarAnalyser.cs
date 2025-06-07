@@ -2,6 +2,7 @@
 using MiniLang.Interpreter;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
@@ -32,8 +33,8 @@ namespace MiniLang.Interfaces
         /// <summary>
         /// Optionally returns a parsed result object (AST node or structure) if grammar is valid.
         /// </summary>
-       public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser
-           , IGrammarInterpreter grammarInterpreter, int Line);
+       public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
+           FunctionDeclarationManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line);
     }
 
 }

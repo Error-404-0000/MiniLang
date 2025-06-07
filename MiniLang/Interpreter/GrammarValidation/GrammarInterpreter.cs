@@ -2,6 +2,7 @@
 using MiniLang.Interfaces;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
@@ -23,11 +24,12 @@ namespace MiniLang.Interpreter
         public IEnumerable<Token> Interpret()
         {
             ScopeObjectValueManager scopeObjectValueManager = new ScopeObjectValueManager();
+            FunctionDeclarationManager FunctiondeclarationManager = new FunctionDeclarationManager();
             ExpressionGrammarAnalyser expressionGrammarAnalyser = new(scopeObjectValueManager);
-            return Interpret(Tokens, scopeObjectValueManager, expressionGrammarAnalyser);
+            return Interpret(Tokens, scopeObjectValueManager, FunctiondeclarationManager, expressionGrammarAnalyser);
         }
 
-        public IEnumerable<Token> Interpret(List<Token> tokens, ScopeObjectValueManager scopeObjectValueManagerParent, ExpressionGrammarAnalyser expressionGrammarAnalyser)
+        public IEnumerable<Token> Interpret(List<Token> tokens, ScopeObjectValueManager scopeObjectValueManagerParent, FunctionDeclarationManager FunctiondeclarationManager, ExpressionGrammarAnalyser expressionGrammarAnalyser)
         {
             tokens = TokenBuilder.BuildStructuredTokens(tokens);
             List<Token> results = new();
@@ -55,7 +57,7 @@ namespace MiniLang.Interpreter
                         throw new Exception($"Expected body scope for token '{currentToken.Value}' at index {i}");
 
                     var headerSegment = tokens.Skip(i).Take(scopeIndex+1 - i).ToArray();
-                    var result = Validator.Analyse(headerSegment, scopeObjectValueManagerParent, expressionGrammarAnalyser,this, i);
+                    var result = Validator.Analyse(headerSegment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i);
                     if (result.HasError)
                         throw new Exception(result.ErrorMessage);
 
@@ -82,7 +84,7 @@ namespace MiniLang.Interpreter
                     {
                         newScope.Parent = scopeObjectValueManagerParent;
                         ExpressionGrammarAnalyser expressionGrammar = new(newScope);
-                        var interpreted = Interpret(innerGroupScope, newScope, expressionGrammar);
+                        var interpreted = Interpret(innerGroupScope, newScope, FunctiondeclarationManager, expressionGrammar);
                         results.Add(new Token(TokenType.Scope, TokenOperation.None, TokenTree.Group, interpreted.ToList()));
                         i++;
                     }
@@ -104,7 +106,7 @@ namespace MiniLang.Interpreter
                 }
 
                 var segment = tokens.Skip(i).Take(end - i).ToArray();
-                var analyseResult = Validator.Analyse(segment, scopeObjectValueManagerParent, expressionGrammarAnalyser,this, i);
+                var analyseResult = Validator.Analyse(segment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i);
 
                 if (analyseResult.HasError)
                     throw new Exception(analyseResult.ErrorMessage);

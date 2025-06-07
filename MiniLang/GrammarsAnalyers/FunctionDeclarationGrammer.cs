@@ -3,6 +3,7 @@ using MiniLang.Functions;
 using MiniLang.Interfaces;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects.FunctionBuilder;
 using MiniLang.TokenObjects;
 using System;
@@ -57,6 +58,7 @@ namespace MiniLang.GrammarsAnalyers
             Token[] tokens,
             ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
             int line)
         {
@@ -80,7 +82,7 @@ namespace MiniLang.GrammarsAnalyers
                         funcToken.FunctionName,
                         funcToken.FunctionArgmentsCount,
                         funcToken.FunctionArgments,
-                        grammarInterpreter.Interpret((tokens[2].Value as IEnumerable<Token>).ToList(),scopeObjectValueManager,expressionGrammarAnalyser)
+                        grammarInterpreter.Interpret((tokens[2].Value as IEnumerable<Token>).ToList(),scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser)
                     )
                 );
             }

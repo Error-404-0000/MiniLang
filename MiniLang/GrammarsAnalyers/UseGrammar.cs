@@ -2,6 +2,7 @@
 using MiniLang.Interpreter;
 using MiniLang.Interpreter.GrammarDummyScopes;
 using MiniLang.Interpreter.GrammarValidation;
+using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects;
 using MiniLang.Tokenilzer;
 using MiniLang.TokenObjects;
@@ -41,6 +42,7 @@ namespace MiniLang.GrammarsAnalyers
             Token[] tokens,
             ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
             int line)
         {
@@ -55,7 +57,7 @@ namespace MiniLang.GrammarsAnalyers
             var tokensFromFile = Tokenizer.Tokenize(fileSource);
             var parsedTokens = Parser.Parser.Parse(tokensFromFile);
 
-           var Tokens =  grammarInterpreter.Interpret(parsedTokens,scopeObjectValueManager,expressionGrammarAnalyser); // builds the token from the source file
+           var Tokens =  grammarInterpreter.Interpret(parsedTokens,scopeObjectValueManager, FunctionDeclarationManager,expressionGrammarAnalyser); // builds the token from the source file
 
             return new Token(TokenType.Keyword, TokenOperation.@use,TokenTree.Single, new UseSyntaxObject(path, Tokens));
         }
