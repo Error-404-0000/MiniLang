@@ -11,7 +11,7 @@ using System.Text;
 
 namespace MiniLang.GrammarsAnalyers
 {
-    [TriggerTokenType(TiggerType.Type)]
+    [TriggerTokenType(TriggerType.Type)]
     public class SetterGrammar : IGrammarAnalyser,IDebugger
     {
         public string GrammarName => "setter operation";

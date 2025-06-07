@@ -8,18 +8,14 @@ using MiniLang.Tokenilzer;
 using MiniLang.TokenObjects;
 
 var tokens = Tokenizer.Tokenize(@"
-{
-    use ""C:\Users\Demon\source\repos\MiniLang\MiniLang\MiniLang_Syntax_Guide\Variables.txt"";
+ fn Me(name){
+
 }
-make flag = 200;
-flag = 200;
-flag -= 200;
-flag += 200;
 ");
 
 var TokensParsed = Parser.Parse(tokens);
 GrammarValidator grammerValidation = new GrammarValidator([new MakeGrammar(),new ConditionGrammar(),new SayGrammar(),new TypeofGrammar(),new UseGrammar()
-    ,new SetterGrammar()]);
+    ,new SetterGrammar(),new FunctionDeclarationGrammar()]);
 GrammarInterpreter grammerInterpreter = new GrammarInterpreter(grammerValidation, TokensParsed);
 var nodes = grammerInterpreter.Interpret();
 void PrintToken(Token token, int depth = 0)

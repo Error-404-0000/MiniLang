@@ -67,7 +67,7 @@ namespace MiniLang.Interpreter
             {
                 if(analyser.GetType().GetCustomAttribute<TriggerTokenType>(false) is TriggerTokenType trigger)
                 {
-                    if(trigger.TriggerType == TiggerType.Type)
+                    if(trigger.TriggerType == TriggerType.Type)
                     {
                        if (analyser.TriggerTokenTypes.Contains(firstToken.TokenType))
                             grammarAnalyser = analyser;

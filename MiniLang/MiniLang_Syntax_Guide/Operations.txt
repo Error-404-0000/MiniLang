@@ -11,7 +11,4 @@ make combo = 1 & 1;
 make either = 0 | 1;
 
 
-make check1 = eq 4 4     ;  
-make check2 = neq 5 3   ;   
-make low = lt 2 9       ;   
-make high = gt 10 3     ;    
+

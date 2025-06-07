@@ -6,8 +6,8 @@ namespace MiniLang.Attributes.GrammarAttribute
 {
     public class TriggerTokenType:Attribute
     {
-        public TiggerType TriggerType { get;}
-        public TriggerTokenType(TiggerType TriggerType)
+        public TriggerType TriggerType { get;}
+        public TriggerTokenType(TriggerType TriggerType)
         {
             this.TriggerType = TriggerType;
         }

@@ -1,6 +1,6 @@
 ﻿namespace MiniLang.Attributes.GrammarAttribute
 {
-    public enum TiggerType
+    public enum TriggerType
     {
         Type,
         Operator

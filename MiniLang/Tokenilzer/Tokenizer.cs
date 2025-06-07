@@ -6,7 +6,7 @@ public static class Tokenizer
 {
     static HashSet<string>  multiCharOps = new HashSet<string>
     {
-        "+=", "-=", "*="
+        "+=", "-=", "*=","<=",">=","==","<",">"
     };
     public static string[] Tokenize(string input)
     {

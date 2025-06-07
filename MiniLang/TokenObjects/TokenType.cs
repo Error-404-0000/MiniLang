@@ -13,7 +13,7 @@ public enum TokenType
 
     Number,
     Scope,
-    [ValueContainer(true, "+", "-", "*", "/", "%", "^")]
+    [ValueContainer(true, "+", "-", "*", "/", "%", "^","<=","==",">=",">","<")]
     Operation,
 
     [ValueContainer(false, "(")]
