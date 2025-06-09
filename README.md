@@ -162,7 +162,7 @@ public class SayGrammar : IGrammarAnalyser
 
         if (tokens.Length < 2)
         {
-            errorMessage = "'say' must be followed by a value (like a string or identifier).";
+            errorMessage = "'say' must be followed by a value (like a string, identifier or an expression).";
             return true;
         }
 
