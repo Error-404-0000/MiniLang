@@ -8,7 +8,7 @@ namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
 {
     public class ScopeObjectValueManager : IDisposable
     {
-        private  List<ScopeObjectValue> _scopes = new();
+        private List<ScopeObjectValue> _scopes = new();
 
         /// <summary>
         /// The parent scope — walk up this chain to access outer-scope values.
@@ -24,7 +24,7 @@ namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
         }
         public TokenType GetTypeOf(string identifier)
         {
-            if(FindScopeWith(identifier) is ScopeObjectValue scopeObjectValue) return scopeObjectValue.TokenType;
+            if (FindScopeWith(identifier) is ScopeObjectValue scopeObjectValue) return scopeObjectValue.TokenType;
             throw new Exception($"Cannot find typeof '{identifier}' — it was not declared.");
 
         }
@@ -52,16 +52,14 @@ namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
 
         private ScopeObjectValue? FindScopeWith(string identifier)
         {
-            var current = this;
-            while (current != null)
-            {
-                var match = current._scopes.FirstOrDefault(x => x.Identifier == identifier);
-                if (match != null)
-                    return match;
 
-                current = current.Parent;
-            }
-            return null;
+
+            var match = _scopes.FirstOrDefault(x => x.Identifier == identifier);
+            if (match != null)
+                return match;
+
+
+            return Parent?.FindScopeWith(identifier);
         }
 
         public void Clear()

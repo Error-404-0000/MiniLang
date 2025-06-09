@@ -49,7 +49,7 @@ namespace MiniLang.GrammarsAnalyers
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
         {
             var expressionTokens = tokens[1..];
-            if(!expressionGrammarAnalyser.IsValidExpression(expressionTokens,out string error))
+            if(!new ExpressionGrammarAnalyser(scopeObjectValueManager,FunctionDeclarationManager).IsValidExpression(expressionTokens,out string error))
             {
                 throw new Exception(error);
             }

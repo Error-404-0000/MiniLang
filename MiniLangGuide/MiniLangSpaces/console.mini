@@ -1,5 +1,5 @@
-﻿fn nothing print(string) :
-	say string;
+﻿fn nothing print(string1):
+	say string1;
 done
 fn nothing print(strin1, string2) :
 	say strin1 + string2;

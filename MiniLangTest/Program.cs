@@ -16,6 +16,8 @@ class MiniLangRuntime
 {
     public static void Main(string[] args)
     {
+        args = [null];
+        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLangSpaces\Main.mini";
         if (args.Length == 0)
         {
             Console.WriteLine("Usage: MiniLangRuntime <script-file>");

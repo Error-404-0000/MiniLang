@@ -25,7 +25,9 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
             var body = whileSyntax.Scope.ToList();
             context.ReturnedHandled();
 
-            while (value.Value is double or int or decimal and > 0)
+            while (value.Value is double d && d > 0 ||
+                   value.Value is int i && i > 0 ||
+                   value.Value is decimal dec && dec > 0)
             {
                 if (!whileSyntax.hasBody)
                     continue;

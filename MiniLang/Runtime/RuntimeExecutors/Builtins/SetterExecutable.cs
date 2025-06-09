@@ -34,6 +34,7 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
                 throw new Exception($"Type mismatch: Cannot add {value.Type} to {currentValue.Type}.");
             }
             context.RuntimeScopeFrame.Assign(setterSyntaxObject.Identifier, new RuntimeValue(currentValue.Type,currentValue.Operator, RenewValue(currentValue.Value, value.Value, setterSyntaxObject.SetterOperator)));
+            context.ReturnedHandled();//this tells the runtime that the return value has been handled
             return null; // No return value for setter operations
         }
         private object RenewValue(object left, object right, SetterOperator setterOperator)

@@ -108,11 +108,22 @@ namespace MiniLang.GrammarsAnalyers
                 );
                 if(FunctionDeclarationManager.Exists(func.FunctionName, funcToken.FunctionArgmentsCount))
                 {
-                    throw new InvalidOperationException("Syntax error: function signature was already declared.");
+                    throw new InvalidOperationException($"Syntax error: function signature was already declared. {func.FunctionName}");
 
                 }
+                ScopeObjectValueManager SubScope = new ScopeObjectValueManager();
+                SubScope.Parent = scopeObjectValueManager;
+                foreach (var arg in func.FunctionArgments)
+                {
+                    SubScope.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
+                    {
+                        Identifier = arg.Argment.ToArray()[0].Value.ToString()??throw new Exception("Syntax error: function arg was unparseable."),
+                        IsAssigned = true,
+                        TokenType = TokenType.Identifier,
+                    });
+                }
                 FunctionDeclarationManager.Add(func);
-                var Body = grammarInterpreter.Interpret((tokens[3].Value as IEnumerable<Token>).ToList(), scopeObjectValueManager, FunctionBodyScope, expressionGrammarAnalyser);
+                var Body = grammarInterpreter.Interpret((tokens[3].Value as IEnumerable<Token>).ToList(), SubScope, FunctionBodyScope, expressionGrammarAnalyser);
                 FunctionDeclarationManager.Remove(func);
                
                 FunctionDeclarationManager.Add(func = new FunctionDeclarationSyntaxObject(

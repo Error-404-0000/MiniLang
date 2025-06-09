@@ -5,6 +5,7 @@ using MiniLang.SyntaxObjects.Condition;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace MiniLang.Runtime.RuntimeExecutors.Builtins
@@ -47,11 +48,11 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
             {
                 throw new InvalidOperationException($"runtime exception: Condition expression must evaluate to a number, but got: {expression_result.Type}");
             }
-            if (expression_result.Value is not double resultValue)
+            if ( !Double.TryParse(expression_result.Value.ToString(),out double result))
             {
                 throw new InvalidOperationException($"runtime exception: Condition expression must evaluate to a number, but got: {expression_result.Value}");
             }
-            if (resultValue != 0)
+            if (result != (double)0)
             {
                 if (cso.HasBody)
                 {
@@ -80,5 +81,6 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
             }
             return null;
         }
+
     }
 }
