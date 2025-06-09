@@ -117,6 +117,133 @@ Everything was built with a goal: learn and make something that actually works.
 ---
 
 ## 💭 
+## 🛠️ How New Features Are Built (with `say` as an Example)
+
+it's really easy to create new keywords or operators — because everything is **token-driven**. Here's how the `say` keyword was added from start to finish.
+
+---
+
+### 1. Define the Token
+
+Tokens are declared using an enum with a special `[ValueContainer]` attribute:
+
+```csharp
+[ValueContainer(true, "say")]
+Function, // This allows 'say' to be parsed as a function keyword
+
+[ValueContainer(false, "say")]
+SayKeyword // This represents the actual operation to trigger later
+```
+
+* `true` in the first one tells the tokenizer "this also have a operator it links to
+* `false` means it does not  have a operator,it is just a stand alone
+
+---
+
+### 2. Grammar: Validate Syntax
+
+The `SayGrammar` class checks if `say` is used correctly — for example:
+
+```ml
+say "Hello!";
+```
+
+You define this rule using `IGrammarAnalyser`:
+
+```csharp
+public class SayGrammar : IGrammarAnalyser
+{
+    public TokenOperation[] TriggerTokensOperator => [TokenOperation.SayKeyword];
+    public bool RequiresTermination => true; // must end with ";"
+
+    public bool Analyse(Token[] tokens, out string errorMessage)
+    {
+        errorMessage = null;
+
+        if (tokens.Length < 2)
+        {
+            errorMessage = "'say' must be followed by a value (like a string or identifier).";
+            return true;
+        }
+
+        if (tokens[1].TokenType != TokenType.StringLiteralExpression &&
+            tokens[1].TokenType != TokenType.Identifier &&
+            tokens[1].TokenType != TokenType.Expression)
+        {
+            errorMessage = $"Invalid argument to 'say': {tokens[1].TokenType}";
+            return true;
+        }
+
+        return false; // no error
+    }
+
+    public Token BuildNode(Token[] tokens,
+        ScopeObjectValueManager scopeObjectValueManager,
+        ExpressionGrammarAnalyser expressionGrammarAnalyser,
+        FunctionDeclarationScopeManager FunctionDeclarationManager,
+        IGrammarInterpreter grammarInterpreter,
+        int line)
+    {
+        var args = tokens.Skip(1)
+                         .TakeWhile(t => t.TokenType != TokenType.Semicolon)
+                         .ToList();
+
+        var sayFunction = new SayFunctionSyntaxObject
+        {
+            FunctionName = "say",
+            ArgmentCounts = args.Count,
+            Argments = args
+        };
+
+        return new Token(TokenType.Function, TokenOperation.SayKeyword, TokenTree.Single, sayFunction);
+    }
+}
+```
+
+---
+
+### 3. Execution: Actually Run It
+
+The `SayExecutable` class is what finally runs your `say` command at runtime:
+
+```csharp
+public class SayExecutable : IExecutableToken
+{
+    public TokenType[] InvokeType => [TokenType.Function];
+    public TokenOperation[] InvokeOperation => [TokenOperation.SayKeyword];
+
+    public RuntimeValue Dispatch(Token yourToken, RuntimeContext context)
+    {
+        if (yourToken.Value is not SayFunctionSyntaxObject say)
+            throw new InvalidOperationException("Invalid 'say' payload.");
+
+        var value = context.RuntimeExpressionEvaluator.Evaluate(say.Argments?.ToList() ?? []);
+        Console.WriteLine(value.Value);
+        return null;
+    }
+}
+```
+
+Now when you write:
+
+```ml
+say "hi there!";
+say "this is a cool math expression $(2*4*2)";
+say "2 * 2 is $(2+2)";
+```
+
+MiniLang will tokenize it, validate it using `SayGrammar`, convert it into a function call, and execute it via `SayExecutable`.
+
+---
+
+
+Want to create a new feature? Just:
+
+1. Add a `[ValueContainer]` entry
+2. Write a `Grammar` rule to validate
+3. Add an `Executable` to run the logic
+
+It’s like plug and play for custom behavior!
 
 you can also see the syntax [here](https://github.com/Error-404-0000/MiniLang/tree/master/MiniLangGuide)
 ---
