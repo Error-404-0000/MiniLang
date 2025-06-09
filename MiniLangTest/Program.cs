@@ -10,7 +10,7 @@ using MiniLang.Runtime.Execution;
 using MiniLang.Runtime.Executor;
 using MiniLang.Runtime.RuntimeExecutors.Singles;
 using MiniLang.Runtime.RuntimeObjectStack;
-using MiniLang.Interpreter.RuntimeExecutors.Builtins;
+using MiniLang.Runtime.RuntimeExecutors.Builtins;
 
 class MiniLangRuntime
 {

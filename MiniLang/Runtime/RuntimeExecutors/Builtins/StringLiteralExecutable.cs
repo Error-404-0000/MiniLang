@@ -1,5 +1,5 @@
 ﻿using MiniLang.Interfaces;
-using MiniLang.Interpreter.Expression;
+using MiniLang.Runtime.Expression;
 using MiniLang.Runtime.RuntimeObjectStack;
 using MiniLang.Runtime.StackObjects.StackFrame;
 using MiniLang.TokenObjects;

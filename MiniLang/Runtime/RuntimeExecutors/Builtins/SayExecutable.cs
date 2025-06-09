@@ -8,7 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace MiniLang.Interpreter.RuntimeExecutors.Builtins
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
 {
     public class SayExecutable : IExecutableToken
     {

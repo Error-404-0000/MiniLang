@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace MiniLang.Interpreter.RuntimeExecutors.Builtins
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
 {
     /// <summary>
     /// Represents an executable token that evaluates conditional expressions and executes associated code blocks.

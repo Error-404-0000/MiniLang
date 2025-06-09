@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace MiniLang.Interpreter.Expression
+namespace MiniLang.Runtime.Expression
 {
     public class InterpolatedStringEvaluator
     {

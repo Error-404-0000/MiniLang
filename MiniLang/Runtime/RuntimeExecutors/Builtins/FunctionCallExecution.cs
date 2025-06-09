@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace MiniLang.Interpreter.RuntimeExecutors.Builtins
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
 {
     /// <summary>
     /// Represents the execution logic for invoking a function call within the runtime context.

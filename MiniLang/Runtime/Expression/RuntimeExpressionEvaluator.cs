@@ -1,6 +1,6 @@
 ﻿using MiniLang.Functions;
-using MiniLang.Interpreter.Expression;
-using MiniLang.Interpreter.RuntimeExecutors.Builtins;
+using MiniLang.Runtime.Expression;
+using MiniLang.Runtime.RuntimeExecutors.Builtins;
 using MiniLang.Runtime.RuntimeObjectStack;
 using MiniLang.Runtime.StackObjects.StackFrame;
 using MiniLang.TokenObjects;
