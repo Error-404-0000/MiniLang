@@ -37,6 +37,8 @@ print("Max of a and b: ", max(a, b));
 
 
 @@ --- while loop ---
+
+
 make  sum = 0;
 make  i = 1;
 
@@ -73,16 +75,16 @@ print("Square Root: ", squareRoot(16));
 print("Square Root of negative: ", squareRoot(9));
 
 {
-make  sum = 0;
-make  i = 1;
-while (i <= 5)
-{
-    sum = add(sum, i);
-    print("i = ", i, ", sum = ", sum);
-    i += add(i, i);
-}
- print("Final sum from 1 to 5: ", i , "and the sum is $(sum)");
-}
+    make  sum = 0; 
+    make  i = 1;
+    while (i <= 5) @the while loop takes an expression which means anything that returns a number is still valid while(2*2){} etc
+    {
+        sum = add(sum, i);
+        print("i = ", i, ", sum = ", sum);
+        i += add(i, i);
+    }
+    print("Final sum from 1 to 5: ", i , "and the sum is $(sum)");
+}    
 
 
 
