@@ -1,5 +1,5 @@
-﻿use "C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLangSpaces\console.mini";
-use "C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLangSpaces\math.mini";
+﻿use "console.mini.py";
+use "math.mini.py";
 
 @
 @
