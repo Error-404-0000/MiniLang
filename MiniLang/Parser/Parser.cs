@@ -117,7 +117,7 @@ public static partial class Parser
             var groupedSubTokens = _group_token_object(subTokens);
 
             // Create the grouped token
-            var groupToken = new Token(TokenType.None, TokenOperation.None, TokenTree.Group, groupedSubTokens);
+            var groupToken = new Token(TokenType.Group, TokenOperation.None, TokenTree.Group, groupedSubTokens);
 
             // Replace the original tokens with the grouped token
             tokens.RemoveRange(startIndex, endIndex - startIndex + 1);

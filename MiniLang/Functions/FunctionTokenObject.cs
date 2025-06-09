@@ -17,6 +17,11 @@ namespace MiniLang.Functions
         public string FunctionName { get; }
         public int FunctionArgmentsCount { get;}
         public IEnumerable<FunctionArgments> FunctionArgments { get;}
+       
     }
-    public record class FunctionArgments(IEnumerable<Token> Argment,int Index);
+    public record  FunctionArgments(IEnumerable<Token> Argment,int Index)
+    {
+        public IEnumerable<Token> Argment { get; } = Argment;
+        public int Index { get; } = Index;  
+    }
 }

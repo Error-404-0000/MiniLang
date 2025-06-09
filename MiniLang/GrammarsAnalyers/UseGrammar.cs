@@ -1,8 +1,8 @@
 ﻿using MiniLang.Interfaces;
-using MiniLang.Interpreter;
-using MiniLang.Interpreter.GrammarDummyScopes;
-using MiniLang.Interpreter.GrammarValidation;
-using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects;
 using MiniLang.Tokenilzer;
 using MiniLang.TokenObjects;
@@ -13,6 +13,16 @@ using System.Xml.Linq;
 
 namespace MiniLang.GrammarsAnalyers
 {
+    /// <summary>
+    /// Provides functionality for analyzing and processing the `use` keyword in a custom grammar.
+    /// </summary>
+    /// <remarks>The <see cref="UseGrammar"/> class is responsible for handling the `use` keyword, which is
+    /// used to include external files. It validates the syntax, ensures the referenced file exists, and processes its
+    /// contents to generate tokens for further interpretation.</remarks>
+    /// <example>
+    /// 
+    ///        use "path/to/file.mini"; // This line will be processed by the UseGrammar analyser.
+    /// </example>
     public class UseGrammar : IGrammarAnalyser,IDebugger
     {
         public string GrammarName => "use keyword";
@@ -42,17 +52,18 @@ namespace MiniLang.GrammarsAnalyers
             Token[] tokens,
             ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
-            FunctionDeclarationManager FunctionDeclarationManager,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
             int line)
         {
             var pathToken = tokens[1];
             var path = pathToken.Value?.ToString();
+            string resolvedPath = ResolvePathSmartly(path);
 
             if (!File.Exists(path))
                 throw new FileNotFoundException($"use error: file not found → \"{path}\"");
 
-            string fileSource = File.ReadAllText(path);
+            string fileSource = File.ReadAllText(resolvedPath);
 
             var tokensFromFile = Tokenizer.Tokenize(fileSource);
             var parsedTokens = Parser.Parser.Parse(tokensFromFile);
@@ -77,6 +88,27 @@ namespace MiniLang.GrammarsAnalyers
             }
             return sb.ToString();
         }
+        private string ResolvePathSmartly(string path)
+        {
+            if (File.Exists(path))
+                return Path.GetFullPath(path);
+
+            string currentDirPath = Path.Combine(Environment.CurrentDirectory, path);
+            if (File.Exists(currentDirPath))
+                return Path.GetFullPath(currentDirPath);
+
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string assemblyDirPath = Path.Combine(baseDir, path);
+            if (File.Exists(assemblyDirPath))
+                return Path.GetFullPath(assemblyDirPath);
+
+            string includesDirPath = Path.Combine(baseDir, "includes", path);
+            if (File.Exists(includesDirPath))
+                return Path.GetFullPath(includesDirPath);
+
+            return path;
+        }
+
     }
 }
 

@@ -1,9 +1,9 @@
 ﻿using MiniLang.Attributes.GrammarAttribute;
 using MiniLang.Interfaces;
-using MiniLang.Interpreter;
-using MiniLang.Interpreter.GrammarDummyScopes;
-using MiniLang.Interpreter.GrammarValidation;
-using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
@@ -12,6 +12,21 @@ using System.Text;
 
 namespace MiniLang.GrammarsAnalyers
 {
+    /// <summary>
+    /// Represents the grammar for analyzing and processing setter operations in a tokenized syntax.
+    /// </summary>
+    /// <remarks>This class provides functionality to validate, interpret, and build syntax nodes for setter
+    /// operations. Setter operations are defined as assignments or modifications to identifiers using specific
+    /// operators.</remarks>
+    /// 
+    /// <example>
+    /// 
+    ///         x = 2;
+    ///         y += 3;
+    ///         k = 5 + 2;
+    ///         l = 10 - 3;
+    ///         y = 5 + 2 * 3;
+    /// </example>
     [TriggerTokenType(TriggerType.Type)]
     public class SetterGrammar : IGrammarAnalyser, IDebugger
     {
@@ -55,7 +70,7 @@ namespace MiniLang.GrammarsAnalyers
             Token[] tokens,
             ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
-            FunctionDeclarationManager FunctionDeclarationManager,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
             int line)
         {

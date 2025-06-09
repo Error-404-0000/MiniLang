@@ -1,9 +1,9 @@
 ﻿using MiniLang.Attributes.GrammarAttribute;
 using MiniLang.Interfaces;
-using MiniLang.Interpreter;
-using MiniLang.Interpreter.GrammarDummyScopes;
-using MiniLang.Interpreter.GrammarValidation;
-using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects.Condition;
 using MiniLang.TokenObjects;
 using System;
@@ -13,7 +13,24 @@ using System.Text;
 
 namespace MiniLang.GrammarsAnalyers
 {
-    
+    /// <summary>
+    /// Represents a grammar analyser for conditional statements, such as "if" and "else".
+    /// </summary>
+    /// <remarks>This class provides functionality to analyse tokens representing conditional statements,
+    /// validate their structure, and build syntax nodes for further interpretation. It supports "if" statements with
+    /// optional "else" blocks and ensures proper token ordering and structure.</remarks>
+    /// <example>
+    /// 
+    ///          if(<!--Expression-->) { <!--Body-->  else <!--Body-->}
+    ///          if(<!--Expression-->) { <!--Body--> }
+    ///           if(<!--Expression-->):   <!--Body-->  done
+    ///            if(<!--Expression-->): <!--Body-->  else <!--Body--> done
+    /// 
+    /// 
+    /// </example>
+    ///
+
+
     [RequiresBody]
     public class ConditionGrammar : IGrammarAnalyser, IDebugger
     {
@@ -65,7 +82,7 @@ namespace MiniLang.GrammarsAnalyers
         }
 
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
-        FunctionDeclarationManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int line)
+        FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int line)
         {
             if (tokens.Length < 2)
                 throw new ArgumentException("Invalid token length for 'if' grammar.");

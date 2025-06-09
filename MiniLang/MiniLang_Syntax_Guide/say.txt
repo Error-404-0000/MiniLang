@@ -1,3 +1,0 @@
-﻿say "Hello";
-say x;
-say "The answer is", 42;

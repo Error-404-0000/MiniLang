@@ -1,5 +1,0 @@
-﻿fn Number print(name)
-{
-	say name;
-	give 1;
-}

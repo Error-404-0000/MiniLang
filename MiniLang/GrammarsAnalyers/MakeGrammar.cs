@@ -1,8 +1,8 @@
 ﻿using MiniLang.Interfaces;
-using MiniLang.Interpreter;
-using MiniLang.Interpreter.GrammarDummyScopes;
-using MiniLang.Interpreter.GrammarValidation;
-using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects.Make;
 using MiniLang.TokenObjects;
 using System;
@@ -12,6 +12,21 @@ using System.Text;
 
 namespace MiniLang.GrammarsAnalyers
 {
+
+    /// <summary>
+    /// Provides functionality for analyzing and processing grammar related to the "make" keyword.
+    /// </summary>
+    /// <remarks>This class implements grammar analysis for statements that begin with the "make" or "var"
+    /// keywords. It validates the syntax of such statements and builds corresponding syntax nodes for further
+    /// processing.</remarks>
+    ///  <example>
+    ///   make x = 5; // Valid statement
+    ///   make y; // Valid statement, but value is not set
+    ///   make k = 10 + 20; // Valid statement with an expression
+    ///   make z = someFunction(); // Valid statement with a function call
+    ///   make k =<!--Expression-->; // Valid statement with an expression
+    ///  </example>
+    ///
 
     public class MakeGrammar : IGrammarAnalyser,IDebugger
     {
@@ -64,13 +79,13 @@ namespace MiniLang.GrammarsAnalyers
 
         public Token BuildNode(Token[] tokens,ScopeObjectValueManager objectValueManager,
              ExpressionGrammarAnalyser expressionGrammar,
-             FunctionDeclarationManager FunctionDeclarationManager
+             FunctionDeclarationScopeManager FunctionDeclarationManager
             , IGrammarInterpreter grammarInterpreter, int line)
         {
             string identifier = (string)tokens[1].Value;
             //FunctionTokenObject valueToken = tokens[2..^1];
             
-            objectValueManager.Add(new Interpreter.GrammerdummyScopes.ScopeObjectValue()
+            objectValueManager.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
             {
                 TokenType = tokens.Length - 3 > 2 ? TokenType.Expression : tokens[3].TokenType,
                 Identifier=identifier,
@@ -80,7 +95,7 @@ namespace MiniLang.GrammarsAnalyers
             {
                 throw new Exception(errorMessage);
             }
-            var makeObject = new MakeSyntaxObject(identifier, tokens[2..tokens.Length], line);
+            var makeObject = new MakeSyntaxObject(identifier, tokens[3..tokens.Length], line);
             return new Token(TokenType.Keyword, TokenOperation.make, TokenTree.Single, makeObject);
         }
 

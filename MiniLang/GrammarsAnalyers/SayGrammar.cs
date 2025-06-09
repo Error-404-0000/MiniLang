@@ -1,7 +1,7 @@
 ﻿using MiniLang.Interfaces;
-using MiniLang.Interpreter.GrammarDummyScopes;
-using MiniLang.Interpreter.GrammarValidation;
-using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.SyntaxObjects;
 using MiniLang.TokenObjects;
 using System;
@@ -10,11 +10,30 @@ using System.Linq;
 
 namespace MiniLang.GrammarsAnalyers
 {
+    /// <summary>
+    /// Represents the grammar rules and analysis logic for the "say" function.
+    /// </summary>
+    /// <remarks>The "say" function grammar is triggered by the <see cref="TokenOperation.SayKeyword"/> token
+    /// and requires a valid argument, such as a string literal, identifier, or expression. This grammar enforces
+    /// termination with a semicolon and provides functionality to analyze tokens and build syntax nodes for the "say"
+    /// function.</remarks>
+    /// <example>
+    /// 
+    ///            say "Hello, World!"; // Valid usage
+    ///            say myVariable; // Valid usage with identifier
+    ///            say 1 + 2; // Valid usage with expression
+    ///            say ; // Invalid usage, missing argument
+    ///            say 123; // Invalid usage, argument must be a string or identifier
+    ///            say FunctionCall(); // Valid usage with function call
+    ///            say "Hello" + " World"; // Valid usage with concatenation
+    ///            say <!--Expression-->; // Valid usage with expression
+    /// 
+    /// </example>
     public class SayGrammar : IGrammarAnalyser
     {
         public string GrammarName => "say function";
 
-        public TokenOperation[] TriggerTokensOperator => [TokenOperation.say];
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.SayKeyword];
 
         public bool RequiresTermination => true;
 
@@ -33,7 +52,7 @@ namespace MiniLang.GrammarsAnalyers
             }
 
             if (tokens[1].TokenType != TokenType.StringLiteralExpression &&
-                tokens[1].TokenType != TokenType.Identifier)
+                tokens[1].TokenType != TokenType.Identifier && tokens[1].TokenType!=TokenType.Expression)
             {
                 errorMessage = $"[SayGrammar] Argument to 'say' must be a string or identifier, found: {tokens[1].TokenType}.";
                 return true;
@@ -46,7 +65,7 @@ namespace MiniLang.GrammarsAnalyers
         public Token BuildNode(Token[] tokens,
             ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
-            FunctionDeclarationManager FunctionDeclarationManager,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
             int line)
         {
@@ -61,8 +80,8 @@ namespace MiniLang.GrammarsAnalyers
                 ArgmentCounts = args.Count,
                 Argments = args
             };
-            Console.WriteLine(args[0].Value);
-            return new Token(TokenType.Function, TokenOperation.say,TokenTree.Single, function);
+            
+            return new Token(TokenType.Function, TokenOperation.SayKeyword,TokenTree.Single, function);
         }
     }
 

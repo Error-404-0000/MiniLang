@@ -23,12 +23,22 @@
 
         [ValueContainer(false, "^")]
         PowerOperation,
+        #region Conditon
+        [ValueContainer(false, "==")]
 
+        EqualOperation,
         [ValueContainer(false, "<")]
         LessThanOperation,
 
         [ValueContainer(false, ">")]
         GreaterThanOperation,
+        [ValueContainer(false, ">=")]
+        GreaterThanOrEqual,
+        [ValueContainer(false, "<=")]
+        LessThanOrEqual,
+        [ValueContainer(false, "!=")]
+        Not,
+        #endregion
 
         [ValueContainer(false, "|")]
         OrOperation,
@@ -54,7 +64,7 @@
         make,
 
         [ValueContainer(false, "say")]
-        say,
+        SayKeyword,
         [ValueContainer(false, "typeof")]
         @typeof,
         [ValueContainer(false, "give")]
@@ -62,26 +72,26 @@
         #endregion
 
         #region Conditions
-        [ValueContainer(false, "eq")]
-        eq,
-
-        [ValueContainer(false, "neq")]
-        neq,
-
-        [ValueContainer(false, "lt")]
-        lt,
-
-        [ValueContainer(false, "gt")]
-        gt,
-
+       
         [ValueContainer(false, "if")]
         If,
 
      
         [ValueContainer(false, "else")]
         @else,
-
-        
+        [ValueContainer(false, "while")]
+        While,
         #endregion
+        #region Return Types operators
+        [ValueContainer(false,"nothing")]
+        ReturnsNothing,
+        [ValueContainer(false,"number")]
+        ReturnsNumber,
+        [ValueContainer(false, "string")]
+        ReturnsString,
+        [ValueContainer(false, "object")]
+        ReturnsObject,
+        #endregion
+
     }
 }

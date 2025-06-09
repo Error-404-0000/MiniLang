@@ -1,0 +1,113 @@
+﻿use "./console";
+use "./math";
+
+@@ --- Variables and Operations ---
+make  a = 10;
+make  b = 5;
+make  c = add(a, b);
+
+print("a = ", a, ", b = ", b, ", c = ", c);
+
+@@ --- if/else and Conditions ---
+if (a > b):
+    print("a is greater than b");
+else
+    print("a is not greater than b");
+done
+
+@@ --- Function creation and give ---
+fn number max(num1, num2) {
+    if (num1 > num2):
+        give num1;
+    else
+        give num2;
+    done
+}
+
+print("Max of a and b: ", max(a, b));
+
+@@--- Scope demonstration ---
+{
+    make scopedVar = 42;
+    print("Inside scope, scopedVar = ", scopedVar);
+}
+
+
+
+
+
+@@ --- while loop ---
+make  sum = 0;
+make  i = 1;
+
+while (i <= 5):
+    sum = add(sum, i);
+    print("i = ", i, ", sum = ", sum);
+    i = add(i, 1);
+done
+
+print("Final sum from 1 to 5: ", sum);
+
+@@ --- say (via print) ---
+print("This is a say/print demonstration.");
+
+@@--- use math functions ---
+print("Subtract: ", subtract(10, 4));
+print("Multiply: ", multiply(6, 7));
+print("Divide: ", divide(20, 5));
+print("Modulo: ", modulo(10, 3));
+print("Power: ", power(2, 8));
+print("Square Root: ", squareRoot(16));
+
+@@ --- give demonstration in a function ---
+fn number addAndDouble(x, y) {
+    make result = add(x, y);
+    give multiply(result, 2);
+}
+print("Add and double 3, 4: ", addAndDouble(3, 4));
+
+
+print("Add: ", add(2, 3));
+print("Subtract: ", subtract(10, 4));
+print("Multiply: ", multiply(6, 7));
+print("Divide: ", divide(20, 5));
+print("Divide by zero: ", divide(10, 0));
+print("Modulo: ", modulo(10, 3));
+print("Modulo by zero: ", modulo(10, 0));
+print("Power: ", power(2, 8));
+print("Power with zero exponent: ", power(5, 0));
+print("Square Root: ", squareRoot(16));
+print("Square Root of negative: ", squareRoot(-9));
+
+@@ Use a while loop to sum numbers 1 to 5
+make  sum = 0;
+make  i = 1;
+while (i <= 5)
+{
+    sum = add(sum, i);
+    print("i = ", i, ", sum = ", sum);
+    i = add(i, 1);
+}
+print("Final sum from 1 to 5: ", sum)
+
+fn number squareRoot(number) {
+	if (number < 0):
+		print("Error: Cannot calculate square root of a negative number.");
+		give 0;
+	else
+		give number ^ 0.5;
+	done
+}
+
+fn number factorial(n) {
+    give squareRoot(n) * squareRoot(n - 1);
+
+
+}
+fn number TwoFunctions(x,y){
+
+    fn number privateadd(x,y):
+        give x + y;
+    done
+    give privateadd(x,y) + 1;
+}

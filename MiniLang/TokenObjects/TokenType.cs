@@ -4,16 +4,16 @@ namespace MiniLang.TokenObjects;
 public enum TokenType
 {
     None,
-
+    Group,
     [ValueContainer(true, "=","-=","+=")]
     SETTERS,
-
+    
     [ValueContainer(true, "say", "show", "typeof")]
     Function,
-
+    FunctionCall,
     Number,
     Scope,
-    [ValueContainer(true, "+", "-", "*", "/", "%", "^","<=","==",">=",">","<")]
+    [ValueContainer(true, "+", "-", "*", "/", "%", "^","<=","==",">=",">","<","!=")]
     Operation,
 
     [ValueContainer(false, "(")]
@@ -21,7 +21,7 @@ public enum TokenType
     [ValueContainer(false, ")")]
     ParenthesisClose,
 
-    [ValueContainer(true, "if", "else", "and", "or")]
+    [ValueContainer(true, "if", "else","while")]
     Conditions,
 
 
@@ -53,6 +53,7 @@ public enum TokenType
 
     [ValueContainer(false,"fn")]
     NewFunction,
-    
+    [ValueContainer(true,"number", "string","object","nothing")]
+    ReturnType
 
 }

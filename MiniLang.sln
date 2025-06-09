@@ -1,11 +1,33 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36121.58 d17.14
+VisualStudioVersion = 17.14.36121.58
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniLang", "MiniLang\MiniLang.csproj", "{973FDEEF-BE17-4441-A6CA-3884EFDB60DB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniLangTest", "MiniLangTest\MiniLangTest.csproj", "{52A2B868-ABD0-41E9-B18B-C093837B6D3A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniLangCLI", "MiniLangTest\MiniLangCLI.csproj", "{52A2B868-ABD0-41E9-B18B-C093837B6D3A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MiniLang_Syntax_Guide", "MiniLang_Syntax_Guide", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		MiniLang\MiniLang_Syntax_Guide\Conditions.mini = MiniLang\MiniLang_Syntax_Guide\Conditions.mini
+		MiniLang\MiniLang_Syntax_Guide\function.mini = MiniLang\MiniLang_Syntax_Guide\function.mini
+		MiniLang\MiniLang_Syntax_Guide\give.mini = MiniLang\MiniLang_Syntax_Guide\give.mini
+		MiniLang\MiniLang_Syntax_Guide\Operations.mini = MiniLang\MiniLang_Syntax_Guide\Operations.mini
+		MiniLang\MiniLang_Syntax_Guide\saymini = MiniLang\MiniLang_Syntax_Guide\saymini
+		MiniLang\MiniLang_Syntax_Guide\Scope.mini = MiniLang\MiniLang_Syntax_Guide\Scope.mini
+		MiniLang\MiniLang_Syntax_Guide\use.mini = MiniLang\MiniLang_Syntax_Guide\use.mini
+		MiniLang\MiniLang_Syntax_Guide\Variables.mini = MiniLang\MiniLang_Syntax_Guide\Variables.mini
+		MiniLang\MiniLang_Syntax_Guide\While.mini = MiniLang\MiniLang_Syntax_Guide\While.mini
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MinLangSpace", "MinLangSpace", "{932B500B-028C-43A9-8532-B3451D899995}"
+	ProjectSection(SolutionItems) = preProject
+		MiniLangTest\MiniLangSpaces\console.mini = MiniLangTest\MiniLangSpaces\console.mini
+		MiniLangTest\MiniLangSpaces\Main.mini = MiniLangTest\MiniLangSpaces\Main.mini
+		MiniLangTest\MiniLangSpaces\math.mini = MiniLangTest\MiniLangSpaces\math.mini
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniLangGuide", "MiniLangGuide\MiniLangGuide.csproj", "{1DE04F69-4690-4E16-BA1E-4B262741DB38}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +43,10 @@ Global
 		{52A2B868-ABD0-41E9-B18B-C093837B6D3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{52A2B868-ABD0-41E9-B18B-C093837B6D3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{52A2B868-ABD0-41E9-B18B-C093837B6D3A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DE04F69-4690-4E16-BA1E-4B262741DB38}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DE04F69-4690-4E16-BA1E-4B262741DB38}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DE04F69-4690-4E16-BA1E-4B262741DB38}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DE04F69-4690-4E16-BA1E-4B262741DB38}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

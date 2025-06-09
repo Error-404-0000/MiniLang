@@ -1,8 +1,8 @@
 ﻿using CacheLily;
-using MiniLang.Interpreter;
-using MiniLang.Interpreter.GrammarDummyScopes;
-using MiniLang.Interpreter.GrammarValidation;
-using MiniLang.Interpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
@@ -34,7 +34,7 @@ namespace MiniLang.Interfaces
         /// Optionally returns a parsed result object (AST node or structure) if grammar is valid.
         /// </summary>
        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
-           FunctionDeclarationManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line);
+           FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line);
     }
 
 }

@@ -1,4 +1,4 @@
-﻿using MiniLang.Interpreter;
+﻿using MiniLang.GrammarInterpreter;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;

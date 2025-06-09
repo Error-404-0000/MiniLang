@@ -9,12 +9,14 @@ namespace MiniLang.SyntaxObjects.FunctionBuilder
     public class FunctionDeclarationSyntaxObject : FunctionTokenObject
     {
         public IEnumerable<Token> Body { get;  }
-        public FunctionDeclarationSyntaxObject(string functionName, int functionArgmentsCount, IEnumerable<FunctionArgments> functionArgments,
-           IEnumerable<Token> Body) : 
+        public TokenOperation ReturnType {  get; }
+        public FunctionDeclarationSyntaxObject(string functionName, int functionArgmentsCount, TokenOperation returnType, IEnumerable<FunctionArgments> functionArgments,
+           IEnumerable<Token> Body) :
             base(functionName, functionArgmentsCount, functionArgments)
         {
-          
+
             this.Body = Body;
+            ReturnType = returnType;
         }
     }
 }

@@ -1,3 +1,0 @@
-﻿make x = 10;
-make name = "Nova";
-
