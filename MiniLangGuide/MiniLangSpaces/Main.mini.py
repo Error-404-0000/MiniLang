@@ -1,6 +1,13 @@
 ﻿use "C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLangSpaces\console.mini";
 use "C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLangSpaces\math.mini";
 
+@
+@
+@
+@                      USING THE .PY EXETENTION FOR COLOR HIGHLIGHT
+@
+@
+
 @@ --- Variables and Operations ---
 make  a = 10;
 make  b = 5;
