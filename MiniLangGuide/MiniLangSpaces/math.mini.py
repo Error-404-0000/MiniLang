@@ -9,11 +9,11 @@ fn number multiply(number1, number2) {
 }
 
 fn number divide(number1,number2){
-     if(number2 ==0):
+         if(number2 ==0):
 	 {
 		 print("Error: Division by zero is not allowed.");
 		 give 0;
-     }
+        }
 	 else
 		 give number1 / number2;
 	 done
