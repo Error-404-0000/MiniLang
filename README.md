@@ -1,6 +1,6 @@
 # MiniLang
 
-MiniLang is a small, token-based programming language I built completely from scratch. It's simple, but powerful enough to let you create real logic and functions with your own syntax. I wanted something light, clean, and understandable.
+MiniLang is a small, token-based programming language I built completely from scratch. It's simple, but powerful enough to let you create real logic and functions with your own syntax. I wanted something light, clean, and understandable. Also catch runtime errors before execution and validation by using dummy scopes.
 
 It uses scoped blocks, expressions, and is built on custom token parsing and runtime interpretation. It doesn't compile, it runs your code directly.
 
