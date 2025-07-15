@@ -6,7 +6,7 @@ It uses scoped blocks, expressions, and is built on custom token parsing and run
 
 --- 
 
-## ✨ Why I Made It
+## ✨ Why I Made It 
 
 I made MiniLang because I wanted to learn how languages work,like how tokens get parsed, how scopes manage variables, and how code can evaluate itself. It's not built to be fancy or overly smart but just smart enough to make things feel real. And it actually runs.
 
