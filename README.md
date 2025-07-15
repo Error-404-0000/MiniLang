@@ -4,7 +4,7 @@ MiniLang is a small, token-based programming language I built completely from sc
 
 It uses scoped blocks, expressions, and is built on custom token parsing and runtime interpretation. It doesn't compile, it runs your code directly.
 
----
+--- 
 
 ## ✨ Why I Made It
 
