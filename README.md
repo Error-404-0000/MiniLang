@@ -15,7 +15,7 @@ Also, I love having full control over the syntax and runtime behavior, down to h
 
 ## 🔤 The Syntax
 
-MiniLang uses words and symbols to define actions. It's not based on C-like languages , it's just its own thing:
+MiniLang uses words and symbols to define actions. It's not based on C-like languages , it's just its own thing: 
 
 ```ml
 make x = 10;
