@@ -1,0 +1,55 @@
+﻿struct FullName{
+    public FirstName -> string;
+    public LastName -> string;
+}
+struct Country{
+    public Country -> string;
+    public State -> string;
+    public ZipCode-> number;
+}
+struct DayMonthYear{
+    public Day->number;
+    public Month -> number;
+    public Year -> number;
+}
+struct Time{
+    public Min->number;
+    public Hours->number;
+    public Seconds->number;
+}
+struct DateTime {
+    public Day->DayMonthYear;
+    public Time -> Time;
+}
+
+
+struct User{
+    public Name ->FullName;
+    public Country->Country;
+    public JoinedDate->DateTime;
+
+}
+
+make user = new User;
+
+user.Name.FirstName = "hello world";
+user.Name.LastName = "tester";
+
+user.Country.Country = "USA";
+user.Country.State = "CA";
+user.Country.ZipCode = 90210;
+
+user.JoinedDate.Day.Day = 27;
+user.JoinedDate.Day.Month = 11;
+user.JoinedDate.Day.Year = 2025;
+
+user.JoinedDate.Time.Hours = 15;
+user.JoinedDate.Time.Min = 32;
+user.JoinedDate.Time.Seconds = 12;
+
+
+say "Name: $(user.Name.FirstName) $(user.Name.LastName)";
+say "Country: $(user.Country.Country), $(user.Country.State)";
+say "ZIP: $(user.Country.ZipCode)";
+say "Joined: $(user.JoinedDate.Day.Day)-$(user.JoinedDate.Day.Month)-$(user.JoinedDate.Day.Year)";
+say "Time: $(user.JoinedDate.Time.Hours):$(user.JoinedDate.Time.Min):$(user.JoinedDate.Time.Seconds)";

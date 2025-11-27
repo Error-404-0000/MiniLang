@@ -1,0 +1,4410 @@
+// ===== FILE: MiniLangPreprocessor.cs =====
+public static class MiniLangPreprocessor
+{
+    /// <summary>
+    /// Removes all lines that start with "@@" (MiniLang comment syntax).
+    /// </summary>
+    public static string RemoveCommentLines(string source)
+    {
+        var lines = source.Split('\n');
+        var cleaned = lines
+            .Where(line => !line.TrimStart().StartsWith("@@"))
+            .ToArray();
+        return string.Join('\n', cleaned);
+    }
+}
+
+
+// ===== FILE: Program.cs =====
+using MiniLang.Debugger;
+using MiniLang.GrammarsAnalyers;
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter;
+using MiniLang.Parser;
+using MiniLang.SyntaxObjects;
+using MiniLang.Tokenilzer;
+using MiniLang.TokenObjects;
+using MiniLang.Runtime.Execution;
+using MiniLang.Runtime.Executor;
+using MiniLang.Runtime.RuntimeExecutors.Singles;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.RuntimeExecutors.Builtins;
+
+class MiniLangRuntime
+{
+    public static void Main(string[] args)
+    {
+        args = [null];
+        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLangSpaces\Main.mini";
+        if (args.Length == 0)
+        {
+            Console.WriteLine("Usage: MiniLangRuntime <script-file>");
+            return;
+        }
+
+        string filePath = args[0];
+        if (!File.Exists(filePath))
+        {
+            Console.WriteLine($"Script file not found: {filePath}");
+            return;
+        }
+
+        string sourceCode = File.ReadAllText(filePath);
+        string cleanedCode = MiniLangPreprocessor.RemoveCommentLines(sourceCode);
+        try
+        {
+            RunScript(cleanedCode);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Runtime Error]: {ex.Message}");
+        }
+    }
+
+    public static void RunScript(string code)
+    {
+        // Tokenize
+        var tokens = Tokenizer.Tokenize(code);
+
+        // Parse
+        var parsedTokens = Parser.Parse(tokens);
+
+        // Build grammar validators
+        var grammarValidator = new GrammarValidator([
+            new MakeGrammar(), new ConditionGrammar(), new SayGrammar(), new TypeofGrammar(), new UseGrammar(),
+            new SetterGrammar(), new FunctionDeclarationGrammar(), new FunctionCallsGrammar(),
+            new StandaloneExpressionGrammar(), new ScopeGrammar(), new GiveGrammar(), new WhileGrammar()
+        ]);
+
+        // Interpret Grammar <- this does not execute the actual code, it builds an AST-like structure and validates  by building a dummy scope trees
+        var grammarInterpreter = new GrammarInterpreter(grammarValidator, parsedTokens);
+        var interpreted = grammarInterpreter.Interpret();
+        interpreted = grammarInterpreter.InjectUse(interpreted);
+
+        // Dispatcher setup
+        var dispatcher = new ExecutableTokenDispatcher([
+            new NumberLiteralExecutable(),
+            new StringInterpolatedExecutable(),
+            new MakeExecutable(),
+            new SayExecutable(),
+            new ScopeExecutable(),
+            new FunctionCallExecution(),
+            new FunctionBuilderExecuteable(),
+            new GiveExacuteable(),
+            new ConditionExecuteable(),
+            new WhileExecuteable(),
+            new SetterExecutable()
+        ]);
+
+        //  Context
+        var context = new RuntimeContext(dispatcher);
+        context.PushScope();
+        context.PushFunctionTable();
+
+        // 7. Load default variables
+        context.RuntimeScopeFrame.Declare(new MiniLang.Runtime.StackObjects.StackFrame.RuntimeVariable(
+            "true", TokenType.Number, new MiniLang.Runtime.StackObjects.StackFrame.RuntimeValue(TokenType.Number, TokenOperation.None, 1)
+        ));
+
+        context.RuntimeScopeFrame.Declare(new MiniLang.Runtime.StackObjects.StackFrame.RuntimeVariable(
+            "false", TokenType.Number, new MiniLang.Runtime.StackObjects.StackFrame.RuntimeValue(TokenType.Number, TokenOperation.None, 0)
+        ));
+
+        // 8. Execute
+        var runtime = new RuntimeEngine(dispatcher, context);
+        runtime.Execute(interpreted.ToList());
+    }
+}
+
+
+// ===== FILE: FuncMataAttribute.cs =====
+namespace MiniLang.Attributes;
+
+[AttributeUsage(AttributeTargets.Field)]
+//this tells the parser which method to use and where it is
+public class FuncMataAttribute(Type type, string Name):Attribute
+{
+    public Type Type { get; } = type;
+    public string Name { get; } = Name;
+}
+
+// ===== FILE: ValueContainerAttribute.cs =====
+using CacheLily;
+namespace MiniLang.Attributes;
+/// <summary>
+///    Tells the parser how to turn a token into a enum value
+/// </summary>
+/// <param name="HaveNext">If the token have a Spifc Opr type</param>
+/// <param name="Values">value containers</param>
+[AttributeUsage(AttributeTargets.Field)]
+
+public class ValueContainerAttribute(bool HaveNext = false, params string[] Values) : Attribute
+{
+    private class StringCachedObject : ICacheable
+    {
+        public int CacheCode { get; set; }
+        public string[] Values { get; set; }
+    }
+    private static readonly Cache<StringCachedObject> cacheValues = new Cache<StringCachedObject>(200, 200, false);
+    private static readonly Cache<CacheObject<(bool, string?)>> cacheValue = new Cache<CacheObject<(bool, string?)>>(200, 200, false);
+    public bool HaveNext { get; } = HaveNext;
+    public string[] Values { get; } = Values;
+    public static (bool haveNext, string? Value) GetContainerValue(Type EnumType, string Value)
+    {
+
+        return cacheValue.Invoke(typeof(ValueContainerAttribute), _getContainerValue, EnumType, Value).Value;
+    }
+    public static (bool haveNext, string? Value) _getContainerValue(Type EnumType, string Value)
+    {
+        if (EnumType.IsEnum)
+        {
+            foreach (var Fields in EnumType.GetFields())
+            {
+                ValueContainerAttribute valueContainers = (ValueContainerAttribute)Fields.GetCustomAttributes(typeof(ValueContainerAttribute), true).FirstOrDefault(x => ((ValueContainerAttribute)x).Values.Contains(Value));
+                if (valueContainers != null)
+                    return (valueContainers.HaveNext, Fields.Name);
+
+            }
+            return (false, null);
+        }
+        else
+            throw new Exception("Expected EnumType to be Enum : [GetContainerValue]");
+    }
+    public static string[] GetContainerValues(Type EnumType, string Value)
+    {
+        return cacheValues.Invoke(typeof(ValueContainerAttribute), _Getvaluecontainerobject, EnumType, Value).Values;
+    }
+    private static string[] _Getvaluecontainerobject(Type EnumType, string Value)
+    {
+        if (EnumType.IsEnum)
+        {
+            foreach (var Fields in EnumType.GetFields())
+            {
+                ValueContainerAttribute valueContainers = (ValueContainerAttribute)Fields.GetCustomAttributes(typeof(ValueContainerAttribute), true).FirstOrDefault(x => ((ValueContainerAttribute)x).Values.Contains(Value));
+                if (valueContainers != null)
+                    return valueContainers.Values;
+
+            }
+            return [];
+        }
+        else
+            throw new Exception("Expected EnumType to be Enum : [GetContainerValue]");
+    }
+}
+
+
+// ===== FILE: Debugger.cs =====
+using MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System.Linq;
+using System.Text;
+
+namespace MiniLang.Debugger;
+
+public static class Debugger
+{
+    public static string WriteTree(IEnumerable<Token> tokens, string indent = "", bool isLast = true)
+    {
+        StringBuilder stringBuilder = new StringBuilder();
+        var tokenList = tokens?.ToList() ?? new List<Token>();
+        for (int i = 0; i < tokenList.Count; i++)
+        {
+            var token = tokenList[i];
+            bool last = i == tokenList.Count - 1;
+
+            string branch = indent + (last ? "└── " : "├── ");
+            string nextIndent = indent + (last ? "    " : "│   ");
+
+            // Function token display
+            if (token.TokenType == TokenType.Function && token.Value is FunctionTokenObject funcObject)
+            {
+                stringBuilder.AppendLine($"{branch}[Function: {funcObject.FunctionName} (Args: {funcObject.FunctionArgmentsCount})]");
+
+                // Print each argument as a subtree
+                foreach (var arg in funcObject.FunctionArgments)
+                {
+                    stringBuilder.AppendLine($"{nextIndent}└── [Arg]");
+                    stringBuilder.AppendLine(WriteTree(arg.Argment, nextIndent + "    ", true));
+                }
+            }
+            // Single tokens (e.g., identifiers, literals, operators)
+            else if (token.TokenTree == TokenTree.Single)
+            {
+                stringBuilder.AppendLine($"{branch}[{token.TokenType} -> {token.TokenOperation}] {token.Value}");
+            }
+            // Grouped tokens or scopes
+            else if (token.TokenTree == TokenTree.Group || token.TokenType == TokenType.Scope)
+            {
+                stringBuilder.AppendLine($"{branch}[Group: {token.TokenType}]");
+                stringBuilder.AppendLine(WriteTree(token.Value as IEnumerable<Token>, nextIndent, last));
+            }
+            // Fallback for unknown structures
+            else
+            {
+                stringBuilder.AppendLine($"{branch}[Unknown Token Type] {token.Value}");
+            }
+        }
+        return stringBuilder.ToString();
+    }
+
+}
+
+
+
+
+// ===== FILE: FunctionTokenObject.cs =====
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Functions
+{
+    public class FunctionTokenObject
+    {
+        public FunctionTokenObject(string functionName, int functionArgmentsCount, IEnumerable<FunctionArgments> functionArgments)
+        {
+            FunctionName = functionName;
+            FunctionArgmentsCount = functionArgmentsCount;
+            FunctionArgments = functionArgments;
+        }
+
+        public string FunctionName { get; }
+        public int FunctionArgmentsCount { get;}
+        public IEnumerable<FunctionArgments> FunctionArgments { get;}
+       
+    }
+    public record  FunctionArgments(IEnumerable<Token> Argment,int Index)
+    {
+        public IEnumerable<Token> Argment { get; } = Argment;
+        public int Index { get; } = Index;  
+    }
+}
+
+
+// ===== FILE: ConditionGrammar.cs =====
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.SyntaxObjects.Condition;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    /// <summary>
+    /// Represents a grammar analyser for conditional statements, such as "if" and "else".
+    /// </summary>
+    /// <remarks>This class provides functionality to analyse tokens representing conditional statements,
+    /// validate their structure, and build syntax nodes for further interpretation. It supports "if" statements with
+    /// optional "else" blocks and ensures proper token ordering and structure.</remarks>
+    /// <example>
+    /// 
+    ///          if(<!--Expression-->) { <!--Body-->  else <!--Body-->}
+    ///          if(<!--Expression-->) { <!--Body--> }
+    ///           if(<!--Expression-->):   <!--Body-->  done
+    ///            if(<!--Expression-->): <!--Body-->  else <!--Body--> done
+    /// 
+    /// 
+    /// </example>
+    ///
+
+
+    [RequiresBody]
+    public class ConditionGrammar : IGrammarAnalyser, IDebugger
+    {
+        public string GrammarName => "Condition Grammar";
+
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.If, TokenOperation.@else];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get; set; }
+
+        public TokenType[] TriggerTokenTypes => throw new NotImplementedException();
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (tokens == null || tokens.Length == 0)
+            {
+                errorMessage = "No tokens provided.";
+                return true;
+            }
+
+            if (tokens[0].TokenOperation == TokenOperation.@else)
+            {
+                errorMessage = "'else' cannot be the first token without a preceding 'if'.";
+                return true;
+            }
+
+            if (tokens[0].TokenOperation != TokenOperation.If)
+            {
+                errorMessage = "Expected 'if' as the first token.";
+                return true;
+            }
+
+            if (tokens.Length < 2 || tokens[1].TokenTree != TokenTree.Group)
+            {
+                errorMessage = "Expected a group token as the condition expression after 'if'.";
+                return true;
+            }
+
+            if (tokens.Length > 2 && tokens[2].TokenType != TokenType.Scope)
+            {
+                errorMessage = "Expected a scope block as the body of the 'if' statement.";
+                return true;
+            }
+
+            return false;
+        }
+
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
+        FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int line)
+        {
+            if (tokens.Length < 2)
+                throw new ArgumentException("Invalid token length for 'if' grammar.");
+
+            if (tokens[1].TokenTree != TokenTree.Group)
+                throw new ArgumentException("Second token must be a group representing the condition.");
+
+            var expression = tokens[1].Value as IEnumerable<Token>;
+            if (expression == null)
+                throw new ArgumentException("Invalid expression group content.");
+
+            IEnumerable<Token>? body = null;
+            IEnumerable<Token>? elseBody = null;
+            int elseStartIndex = -1;
+
+            if (tokens.Length > 2 && tokens[2].TokenType == TokenType.Scope)
+            {
+                var scopeTokens = tokens[2].Value as IEnumerable<Token>;
+                elseStartIndex = FindIndexOfElse(scopeTokens);
+
+                if (elseStartIndex != -1)
+                {
+                    body = grammarInterpreter.Interpret(scopeTokens.Take(elseStartIndex).ToList(), scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser);
+                    elseBody = grammarInterpreter.Interpret(scopeTokens.Skip(elseStartIndex+1).ToList(), scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser);
+                }
+                else
+                {
+                    body = grammarInterpreter.Interpret(scopeTokens.ToList(), scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser);
+                }
+            }
+
+            var elseObj = elseBody != null ? new ElseSyntaxObject(elseStartIndex, elseBody) : null;
+            return new Token(
+                TokenType.Conditions,
+                TokenOperation.If,
+                TokenTree.Single,
+                new ConditionSyntaxObject(expression, line, body, haveElse: elseBody != null, haveBody: body != null, elseObj)
+            );
+        }
+
+        private static int FindIndexOfElse(IEnumerable<Token> tokens)
+        {
+            int depth = 0;
+            int index = 0;
+            foreach (var token in tokens)
+            {
+                if (token.TokenOperation == TokenOperation.If) depth++;
+                else if (token.TokenOperation == TokenOperation.@else)
+                {
+                    if (depth == 0) return index;
+                    depth--;
+                }
+                index++;
+            }
+            return -1;
+        }
+
+        public string ViewSelf(Token self,GrammarValidator validator, int indentLevel)
+        {
+            if (self.Value is not ConditionSyntaxObject condition)
+                return string.Empty;
+
+            var indent = new string(' ', indentLevel * 2);
+            var childIndent = new string(' ', (indentLevel + 1) * 2);
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"{indent}Condition");
+            sb.AppendLine($"{childIndent}├─ Line: {condition.Line}");
+            sb.AppendLine($"{childIndent}├─ HasBody: {condition.HasBody}");
+            sb.AppendLine($"{childIndent}├─ HasElse: {condition.HasElse}");
+
+            // Print Condition Expression
+            sb.AppendLine($"{childIndent}├─ Condition Expression:");
+            foreach (var token in condition.Expression)
+            {
+                if (validator.ResolveAnalyser(token) is IDebugger dbg)
+                    sb.Append(dbg.ViewSelf(token, validator, indentLevel + 2));
+                else
+                    sb.AppendLine($"  {Debugger.Debugger.WriteTree([token], indent, true)}");
+            }
+
+            // Print Body
+            if (condition.Scope != null)
+            {
+                sb.AppendLine($"{childIndent}├─ Body:");
+                foreach (var token in condition.Scope)
+                {
+                    if (validator.ResolveAnalyser(token) is IDebugger dbg)
+                        sb.Append(dbg.ViewSelf(token, validator, indentLevel + 2));
+                    else
+                        sb.AppendLine($"  {Debugger.Debugger.WriteTree([token], indent,true)}");
+                }
+            }
+
+            // Print Else
+            if (condition.HasElse && condition.Else is not null)
+            {
+                sb.AppendLine($"{childIndent}└─ Else:");
+                foreach (var token in condition.Else.Scope)
+                {
+                    if (validator.ResolveAnalyser(token) is IDebugger dbg)
+                        sb.Append(dbg.ViewSelf(token, validator, indentLevel + 2));
+                    else
+                        sb.AppendLine($"   {Debugger.Debugger.WriteTree([token], indent, true)}");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+    }
+}
+
+
+// ===== FILE: FunctionCallsGrammar.cs =====
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Functions;
+namespace MiniLang.GrammarsAnalyers
+{
+
+    /// <summary>
+    /// Provides grammar analysis for function call tokens within a minilang language syntax.
+    /// </summary>
+    /// <remarks>This class is responsible for analyzing tokens to determine whether they represent valid
+    /// function calls. It supports syntax validation, token transformation, and node building for function
+    /// calls.</remarks>
+    /// <example>
+    /// 
+    ///     Func(<!-- FunctionCallTokenObject -->arg1, arg2, arg3); // Valid function call syntax-->
+    ///     funcName(<!--Expression-->);
+    ///     
+    /// </example>
+
+
+    [TriggerTokenType(TriggerType.Type)]
+    public class FunctionCallsGrammar : IGrammarAnalyser
+    {
+        public string GrammarName => "Function Caller";
+
+        public TokenOperation[] TriggerTokensOperator => [];
+
+        public TokenType[] TriggerTokenTypes => [TokenType.FunctionCall];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get ; set ; }
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            if(tokens == null || tokens.Length == 0)
+            {
+                errorMessage = "Syntax error: incomplete function call.";
+                return true;
+            }
+            if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall)
+            {
+                errorMessage = "Syntax error: incorrect function call syntax.";
+                return true;
+            }
+            errorMessage = null;
+            return false;
+            
+        }
+
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        {
+            if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall || tokens[0].Value is  FunctionTokenObject func&&
+                FunctionDeclarationManager.Get(func.FunctionName,func.FunctionArgmentsCount) is  null)
+            {
+
+                throw new Exception("Syntax error: incorrect function call syntax.");
+            }
+            if (tokens[0].Value is FunctionTokenObject func1)
+            foreach (var parm in func1.FunctionArgments)
+            {
+                    //if(!expressionGrammarAnalyser.IsValidExpression(parm.Argment.ToArray(), out string error))
+                    //{
+                    //    throw new Exception(error);
+                    //}
+            }
+            return tokens[0];//it's is already a FunctionTokenObject
+        }
+    }
+}
+
+
+// ===== FILE: FunctionDeclarationGrammer.cs =====
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Functions;
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.SyntaxObjects.FunctionBuilder;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    /// <summary>
+    /// Represents the grammar analysis for function declarations in a minilang language.
+    /// </summary>
+    /// <remarks>This class provides functionality to analyze and validate the syntax of function
+    /// declarations, ensuring they conform to the expected format. It also supports building syntax tree nodes for
+    /// valid function declarations.</remarks>
+    /// <example>
+    ///     fn number add(number a, number b) {
+    ///             give a + b;
+    ///     }
+    ///     fn string greet(string name) {
+    ///         give "Hello, $(name)";
+    ///     }
+    ///     fn object getObject(obj) {
+    ///         give typeof obj;<!-- optional return -->
+    ///     }
+    ///     fn nothing doNothing(){
+    ///         @must return nothing;
+    ///     }
+    /// 
+    /// 
+    /// </example>
+    ///
+
+    [TriggerTokenType(TriggerType.Type), RequiresBody]
+    public class FunctionDeclarationGrammar : IGrammarAnalyser
+    {
+        public string GrammarName => "Function Declaration";
+
+        public TokenOperation[] TriggerTokensOperator => Array.Empty<TokenOperation>();
+
+        public TokenType[] TriggerTokenTypes => new[] { TokenType.NewFunction };
+
+        public bool RequiresTermination => false;
+
+        public int CacheCode { get; set; }
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (tokens == null || tokens.Length != 4)
+            {
+                errorMessage = "Syntax error: function declaration must follow the form 'fn <return type> <Function> <Body>'.";
+                return true;
+            }
+            if (tokens[1].TokenType is not TokenType.ReturnType)
+            {
+                errorMessage = "Syntax error: 'fn' requires a return type.";
+                return true;
+            }
+            if (tokens[2].TokenType != TokenType.FunctionCall)
+            {
+                errorMessage = "Syntax error: 'fn' must be followed by a function signature.";
+                return true;
+            }
+
+            if (tokens[3].TokenType != TokenType.Scope)
+            {
+                errorMessage = "Syntax error: function declaration must include a body block.";
+                return true;
+            }
+
+            return false;
+        }
+
+        public Token BuildNode(
+            Token[] tokens,
+            ScopeObjectValueManager scopeObjectValueManager,
+            ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
+            IGrammarInterpreter grammarInterpreter,
+            int line)
+        {
+            if (tokens[2].Value is FunctionTokenObject funcToken)
+            {
+                // Check that all function arguments are identifiers
+                var invalidArg = funcToken.FunctionArgments
+                    .FirstOrDefault(arg =>
+                        arg.Argment.FirstOrDefault(token => token.TokenType != TokenType.Identifier) != null);
+
+                if (invalidArg != null)
+                {
+                    throw new InvalidOperationException("Syntax error: function signature requires identifiers as argument names, but an expression was found.");
+                }
+                FunctionDeclarationScopeManager  FunctionBodyScope = new FunctionDeclarationScopeManager();//creating a new scope
+                FunctionBodyScope.ParentScope = FunctionDeclarationManager;
+                var func = new FunctionDeclarationSyntaxObject(
+                        funcToken.FunctionName,
+                        funcToken.FunctionArgmentsCount,
+                        tokens[1].TokenOperation,
+                        funcToken.FunctionArgments,
+                       null
+                );
+                if(FunctionDeclarationManager.Exists(func.FunctionName, funcToken.FunctionArgmentsCount))
+                {
+                    throw new InvalidOperationException($"Syntax error: function signature was already declared. {func.FunctionName}");
+
+                }
+                ScopeObjectValueManager SubScope = new ScopeObjectValueManager();
+                SubScope.Parent = scopeObjectValueManager;
+                foreach (var arg in func.FunctionArgments)
+                {
+                    SubScope.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
+                    {
+                        Identifier = arg.Argment.ToArray()[0].Value.ToString()??throw new Exception("Syntax error: function arg was unparseable."),
+                        IsAssigned = true,
+                        TokenType = TokenType.Identifier,
+                    });
+                }
+                FunctionDeclarationManager.Add(func);
+                var Body = grammarInterpreter.Interpret((tokens[3].Value as IEnumerable<Token>).ToList(), SubScope, FunctionBodyScope, expressionGrammarAnalyser);
+                FunctionDeclarationManager.Remove(func);
+               
+                FunctionDeclarationManager.Add(func = new FunctionDeclarationSyntaxObject(
+                        funcToken.FunctionName,
+                        funcToken.FunctionArgmentsCount,
+                        tokens[1].TokenOperation,
+                        funcToken.FunctionArgments,
+                       Body
+                ));
+
+                return new Token(
+                    TokenType.NewFunction,
+                    TokenOperation.None,
+                    TokenTree.Single,
+                    func
+                );
+            }
+
+            throw new InvalidOperationException($"Invalid function token object at line {line}. Expected FunctionTokenObject but got {tokens[1].Value?.GetType().Name ?? "null"}.");
+        }
+    }
+}
+
+
+// ===== FILE: GiveGrammar.cs =====
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.Interfaces;
+using MiniLang.SyntaxObjects;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    /// <summary>
+    /// Represents a grammar analyser for the "give" operation, which processes tokens related to the "give" keyword.
+    /// </summary>
+    /// <remarks>This grammar analyser is triggered by the "give" token and requires termination. It validates
+    /// the syntax and builds a corresponding syntax tree node for the "give" operation.</remarks>
+    ///<example>
+    ///        
+    ///             give 5 + 3; // This will be processed by the GiveGrammar analyser
+    ///             give <!--Expression-->;
+    /// 
+    ///</example> 
+
+    public class GiveGrammar : IGrammarAnalyser
+    {
+        public string GrammarName => "returner grammar";
+
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.give];
+
+        public TokenType[] TriggerTokenTypes => [];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get ; set ; }
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            if (tokens.Length < 2)
+            {
+                errorMessage = "[give] must be followed by an expression.";
+                return true;
+            }
+            errorMessage = null;
+            return false;
+
+        }
+
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        {
+            var expressionTokens = tokens[1..];
+            if(!new ExpressionGrammarAnalyser(scopeObjectValueManager,FunctionDeclarationManager).IsValidExpression(expressionTokens,out string error))
+            {
+                throw new Exception(error);
+            }
+            return new Token(TokenType.Keyword, TokenOperation.give, TokenTree.Single, new GiveSyntaxObject(expressionTokens));
+        }
+    }
+}
+
+
+// ===== FILE: MakeGrammar.cs =====
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.SyntaxObjects.Make;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+
+    /// <summary>
+    /// Provides functionality for analyzing and processing grammar related to the "make" keyword.
+    /// </summary>
+    /// <remarks>This class implements grammar analysis for statements that begin with the "make" or "var"
+    /// keywords. It validates the syntax of such statements and builds corresponding syntax nodes for further
+    /// processing.</remarks>
+    ///  <example>
+    ///   make x = 5; // Valid statement
+    ///   make y; // Valid statement, but value is not set
+    ///   make k = 10 + 20; // Valid statement with an expression
+    ///   make z = someFunction(); // Valid statement with a function call
+    ///   make k =<!--Expression-->; // Valid statement with an expression
+    ///  </example>
+    ///
+
+    public class MakeGrammar : IGrammarAnalyser,IDebugger
+    {
+        public string GrammarName => "make keyword";
+
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.make];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get ; set ; }
+
+        public TokenType[] TriggerTokenTypes => throw new NotImplementedException();
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (tokens.Length < 4)
+            {
+                errorMessage = "Incomplete 'make' statement.";
+                return false;
+            }
+
+            if (tokens[0].TokenType != TokenType.Keyword || (tokens[0].Value != "make" && tokens[0].Value != "var"))
+            {
+                errorMessage = "Statement must begin with 'make' or 'var'.";
+                return false;
+            }
+
+            if (tokens[1].TokenType != TokenType.Identifier)
+            {
+                errorMessage = "Expected variable name after 'make'.";
+                return false;
+            }
+
+            if (tokens[2].TokenType != TokenType.SETTERS)
+            {
+                errorMessage = "Expected '=' after variable name.";
+                return false;
+            }
+
+            if (tokens[^1].TokenType != TokenType.Semicolon)
+            {
+                errorMessage = "Expected ';' at end of statement.";
+                return false;
+            }
+
+            return true;
+        }
+
+        public Token BuildNode(Token[] tokens,ScopeObjectValueManager objectValueManager,
+             ExpressionGrammarAnalyser expressionGrammar,
+             FunctionDeclarationScopeManager FunctionDeclarationManager
+            , IGrammarInterpreter grammarInterpreter, int line)
+        {
+            string identifier = (string)tokens[1].Value;
+            //FunctionTokenObject valueToken = tokens[2..^1];
+            
+            objectValueManager.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
+            {
+                TokenType = tokens.Length - 3 > 2 ? TokenType.Expression : tokens[3].TokenType,
+                Identifier=identifier,
+                IsAssigned = tokens.Length<3? true:false,//make obj; means value is not set and make obj =...;
+            });
+            if (tokens.Length>3&&!expressionGrammar.IsValidExpression(tokens[3..(tokens.Length)],out string errorMessage))
+            {
+                throw new Exception(errorMessage);
+            }
+            var makeObject = new MakeSyntaxObject(identifier, tokens[3..tokens.Length], line);
+            return new Token(TokenType.Keyword, TokenOperation.make, TokenTree.Single, makeObject);
+        }
+
+        public string ViewSelf(Token Token,GrammarValidator validator, int indentLevel)
+        {
+            if(Token.TokenOperation is TokenOperation.make)
+            {
+                if(Token.Value is MakeSyntaxObject makeSyntaxObject)
+                {
+                    return makeSyntaxObject.ToTreeString(string.Join(" ", Enumerable.Repeat(" ", indentLevel -  indentLevel >0?-1:0))+" ",true);
+                }
+            }
+            return string.Empty;
+        }
+    }
+}
+
+
+// ===== FILE: SayGrammar.cs =====
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.SyntaxObjects;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    /// <summary>
+    /// Represents the grammar rules and analysis logic for the "say" function.
+    /// </summary>
+    /// <remarks>The "say" function grammar is triggered by the <see cref="TokenOperation.SayKeyword"/> token
+    /// and requires a valid argument, such as a string literal, identifier, or expression. This grammar enforces
+    /// termination with a semicolon and provides functionality to analyze tokens and build syntax nodes for the "say"
+    /// function.</remarks>
+    /// <example>
+    /// 
+    ///            say "Hello, World!"; // Valid usage
+    ///            say myVariable; // Valid usage with identifier
+    ///            say 1 + 2; // Valid usage with expression
+    ///            say ; // Invalid usage, missing argument
+    ///            say 123; // Invalid usage, argument must be a string or identifier
+    ///            say FunctionCall(); // Valid usage with function call
+    ///            say "Hello" + " World"; // Valid usage with concatenation
+    ///            say <!--Expression-->; // Valid usage with expression
+    /// 
+    /// </example>
+    public class SayGrammar : IGrammarAnalyser
+    {
+        public string GrammarName => "say function";
+
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.SayKeyword];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get; set; }
+
+        public TokenType[] TriggerTokenTypes => throw new NotImplementedException();
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (tokens == null || tokens.Length < 2)
+            {
+                errorMessage = "[SayGrammar] 'say' must be followed by a value (e.g. string or identifier).";
+                return true;
+            }
+
+            if (tokens[1].TokenType != TokenType.StringLiteralExpression &&
+                tokens[1].TokenType != TokenType.Identifier && tokens[1].TokenType!=TokenType.Expression)
+            {
+                errorMessage = $"[SayGrammar] Argument to 'say' must be a string or identifier, found: {tokens[1].TokenType}.";
+                return true;
+            }
+
+          
+            return false; // No error
+        }
+
+        public Token BuildNode(Token[] tokens,
+            ScopeObjectValueManager scopeObjectValueManager,
+            ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
+            IGrammarInterpreter grammarInterpreter,
+            int line)
+        {
+            var sayToken = tokens[0];
+            var args = tokens.Skip(1)
+                             .TakeWhile(t => t.TokenType != TokenType.Semicolon)
+                             .ToList();
+
+            var function = new SayFunctionSyntaxObject
+            {
+                FunctionName = "say",
+                ArgmentCounts = args.Count,
+                Argments = args
+            };
+            
+            return new Token(TokenType.Function, TokenOperation.SayKeyword,TokenTree.Single, function);
+        }
+    }
+
+   
+}
+
+
+// ===== FILE: ScopeGrammar.cs =====
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.Interfaces;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+
+    [TriggerTokenType(TriggerType.Type)]
+    public class ScopeGrammar : IGrammarAnalyser
+    {
+        public string GrammarName =>"Scope Grammar";
+
+        public TokenOperation[] TriggerTokensOperator => [];
+
+        public TokenType[] TriggerTokenTypes =>[TokenType.Scope];
+
+        public bool RequiresTermination => false;
+
+        public int CacheCode { get ; set ; }
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            if(tokens == null || tokens.Length is 0 or > 1 )
+            {
+                errorMessage = "Syntax error: invalid scope body";
+                return true;
+            }
+            if (tokens[0].TokenType != TokenType.Scope)
+            {
+                errorMessage = "Syntax error: invalid scope body";
+                return true;
+            }
+            errorMessage = "";
+            return false;
+        }
+
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        {
+            ScopeObjectValueManager subscope = new ScopeObjectValueManager();
+            subscope.Parent = scopeObjectValueManager;
+            FunctionDeclarationScopeManager subFuncScope = new FunctionDeclarationScopeManager();
+            subFuncScope.ParentScope = FunctionDeclarationManager;
+            grammarInterpreter.Interpret(tokens.ToList(),subscope,subFuncScope,expressionGrammarAnalyser);
+            return tokens[0];
+        }
+    }
+}
+
+
+// ===== FILE: SetterGrammar.cs =====
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    /// <summary>
+    /// Represents the grammar for analyzing and processing setter operations in a tokenized syntax.
+    /// </summary>
+    /// <remarks>This class provides functionality to validate, interpret, and build syntax nodes for setter
+    /// operations. Setter operations are defined as assignments or modifications to identifiers using specific
+    /// operators.</remarks>
+    /// 
+    /// <example>
+    /// 
+    ///         x = 2;
+    ///         y += 3;
+    ///         k = 5 + 2;
+    ///         l = 10 - 3;
+    ///         y = 5 + 2 * 3;
+    /// </example>
+    [TriggerTokenType(TriggerType.Type)]
+    public class SetterGrammar : IGrammarAnalyser, IDebugger
+    {
+        public string GrammarName => "setter operation";
+
+        public TokenOperation[] TriggerTokensOperator => [   TokenOperation.SETTER,
+            TokenOperation.SETTERAddOperation,
+            TokenOperation.SETTERSubtractOperation];
+        public TokenType[] TriggerTokenTypes => [TokenType.Identifier, TokenType.SETTERS];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get; set; }
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (tokens.Length < 3)
+            {
+                errorMessage = "Setter syntax must follow: <identifier> <operator> <expression>";
+                return true;
+            }
+
+            if (tokens[0].TokenType != TokenType.Identifier)
+            {
+                errorMessage = "Expected identifier as left-hand side of setter.";
+                return true;
+            }
+
+            if (!TriggerTokensOperator.Contains(tokens[1].TokenOperation))
+            {
+                errorMessage = $"Invalid setter operator: {tokens[1].Value}";
+                return true;
+            }
+
+            return false;
+        }
+
+        public Token BuildNode(
+            Token[] tokens,
+            ScopeObjectValueManager scopeObjectValueManager,
+            ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
+            IGrammarInterpreter grammarInterpreter,
+            int line)
+        {
+            string identifier = tokens[0].Value?.ToString();
+
+            SetterOperator op = tokens[1].TokenOperation switch
+            {
+                TokenOperation.SETTER => SetterOperator.SETTER,
+                TokenOperation.SETTERAddOperation => SetterOperator.SETTERAddOperation,
+                TokenOperation.SETTERSubtractOperation => SetterOperator.SETTERSubtractOperation,
+                _ => throw new Exception($"unexpect setter operator '{tokens[1].TokenOperation}'.")
+            };
+
+            var expression = tokens[2..]; // all tokens after operator
+            if (tokens.Length > 3 && !expressionGrammarAnalyser.IsValidExpression(tokens[3..(tokens.Length)], out string errorMessage))
+            {
+                throw new Exception(errorMessage);
+            }
+            // Register as assigned in scope
+            scopeObjectValueManager.MarkAssigned(identifier);
+
+            var setterObj = new SetterSyntaxObject(identifier, op, expression);
+
+            return new Token(TokenType.SETTERS, tokens[1].TokenOperation, TokenTree.Single, setterObj);
+        }
+
+        public string ViewSelf(Token Token, GrammarValidator grammarValidator = null, int indentLevel = 0)
+        {
+            if (Token.Value is not SetterSyntaxObject setter)
+                return string.Empty;
+
+            var indent = string.Join("", Enumerable.Repeat("    ", indentLevel));
+            var builder = new StringBuilder();
+
+            builder.AppendLine($"{indent}└── [SetterStatement]");
+            builder.AppendLine($"{indent}    ├── [Identifier -> {setter.Identifier}]");
+            builder.AppendLine($"{indent}    ├── [SetterOperator -> {setter.SetterOperator}]");
+
+            builder.AppendLine($"{indent}    └── [Expression]");
+            foreach (var token in setter.Expression)
+            {
+                builder.AppendLine($"{indent}        └── [Token::{token.TokenType}<{token.TokenOperation}> -> {token.Value}]");
+            }
+
+            return builder.ToString();
+        }
+
+    }
+
+    public enum SetterOperator
+    {
+        SETTER,
+        SETTERAddOperation,
+        SETTERSubtractOperation
+    }
+
+    public record SetterSyntaxObject(string Identifier, SetterOperator SetterOperator, IEnumerable<Token> Expression);
+}
+
+
+// ===== FILE: StandaloneExpressionGrammar.cs =====
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    [TriggerTokenType(TriggerType.Type)]
+    public class StandaloneExpressionGrammar : IGrammarAnalyser
+    {
+        public string GrammarName => "StandaloneExpression";
+
+        public TokenOperation[] TriggerTokensOperator => [];
+
+        public TokenType[] TriggerTokenTypes => [TokenType.None];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get ; set; }
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = "StandaloneExpression error: an expression can't be called as a standalone.";
+            return true;
+        }
+
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        {
+            return tokens[0];//makes the complier happy, but this is not used in this context.
+        }
+    }
+}
+
+
+// ===== FILE: TypeofGrammer.cs =====
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Linq;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    public class TypeofGrammar : IGrammarAnalyser
+    {
+        public string GrammarName => "typeof keyword";
+
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.@typeof];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get; set; }
+
+        public TokenType[] TriggerTokenTypes => null;
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (tokens.Length != 2 || tokens[1].TokenType != TokenType.Identifier)
+            {
+                errorMessage = "error: `typeof` must be followed by a name (identifier)";
+                return true;
+            }
+
+            return false;
+        }
+
+        public Token BuildNode(Token[] tokens,
+            ScopeObjectValueManager scopeObjectValueManager,
+            ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
+            IGrammarInterpreter grammarInterpreter,
+            int line)
+        {
+            var identifierToken = tokens[1];
+            var type = scopeObjectValueManager.GetTypeOf(identifierToken.Value?.ToString());
+
+         
+
+            return new Token(TokenType.StringLiteralExpression, TokenOperation.None,TokenTree.Single, type.ToString());
+        }
+    }
+}
+
+
+// ===== FILE: UseGrammar.cs =====
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.SyntaxObjects;
+using MiniLang.Tokenilzer;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Xml.Linq;
+
+namespace MiniLang.GrammarsAnalyers
+{
+    /// <summary>
+    /// Provides functionality for analyzing and processing the `use` keyword in a custom grammar.
+    /// </summary>
+    /// <remarks>The <see cref="UseGrammar"/> class is responsible for handling the `use` keyword, which is
+    /// used to include external files. It validates the syntax, ensures the referenced file exists, and processes its
+    /// contents to generate tokens for further interpretation.</remarks>
+    /// <example>
+    /// 
+    ///        use "path/to/file.mini"; // This line will be processed by the UseGrammar analyser.
+    /// </example>
+    public class UseGrammar : IGrammarAnalyser,IDebugger
+    {
+        public string GrammarName => "use keyword";
+
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.@use];
+
+        public bool RequiresTermination => true;
+
+        public int CacheCode { get; set; }
+
+        public TokenType[] TriggerTokenTypes => throw new NotImplementedException();
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (tokens.Length != 2 || tokens[1].TokenType != TokenType.StringLiteralExpression)
+            {
+                errorMessage = "syntax error: expected `use \"filepath\";`";
+                return true;
+            }
+
+            return false;
+        }
+
+        public Token BuildNode(
+            Token[] tokens,
+            ScopeObjectValueManager scopeObjectValueManager,
+            ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationScopeManager FunctionDeclarationManager,
+            IGrammarInterpreter grammarInterpreter,
+            int line)
+        {
+            var pathToken = tokens[1];
+            var path = pathToken.Value?.ToString();
+            string resolvedPath = ResolvePathSmartly(path);
+
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"use error: file not found → \"{path}\"");
+
+            string fileSource = File.ReadAllText(resolvedPath);
+
+            var tokensFromFile = Tokenizer.Tokenize(fileSource);
+            var parsedTokens = Parser.Parser.Parse(tokensFromFile);
+
+           var Tokens =  grammarInterpreter.Interpret(parsedTokens,scopeObjectValueManager, FunctionDeclarationManager,expressionGrammarAnalyser); // builds the token from the source file
+
+            return new Token(TokenType.Keyword, TokenOperation.@use,TokenTree.Single, new UseSyntaxObject(path, Tokens));
+        }
+
+        public string ViewSelf(Token Token, GrammarValidator grammarValidator = null, int indentLevel = 0)
+        {
+            StringBuilder sb = new StringBuilder();
+            if(Token.Value is UseSyntaxObject UseSyntaxObject)
+            {
+                foreach (Token token in UseSyntaxObject.Tokens)
+                {
+                    if (grammarValidator.ResolveAnalyser(token) is IGrammarAnalyser gm && gm is IDebugger db)
+                    {
+                        sb.AppendLine(db.ViewSelf(token, grammarValidator, 0));
+                    }
+                }
+            }
+            return sb.ToString();
+        }
+        private string ResolvePathSmartly(string path)
+        {
+            if (File.Exists(path))
+                return Path.GetFullPath(path);
+
+            string currentDirPath = Path.Combine(Environment.CurrentDirectory, path);
+            if (File.Exists(currentDirPath))
+                return Path.GetFullPath(currentDirPath);
+
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string assemblyDirPath = Path.Combine(baseDir, path);
+            if (File.Exists(assemblyDirPath))
+                return Path.GetFullPath(assemblyDirPath);
+
+            string includesDirPath = Path.Combine(baseDir, "includes", path);
+            if (File.Exists(includesDirPath))
+                return Path.GetFullPath(includesDirPath);
+
+            return path;
+        }
+
+    }
+}
+
+
+
+// ===== FILE: WhileGrammar.cs =====
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.Interfaces;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarsAnalyers
+{
+
+    /// <summary>
+    /// Represents the grammar for analyzing and interpreting "while" loop constructs in a custom language.
+    /// </summary>
+    /// <remarks>This class provides functionality to analyze tokens representing a "while" loop and validate
+    /// their structure. It ensures that the loop contains a valid condition and an optional body. Additionally, it 
+    /// 
+    ///            while(<!-- condition -->) { <!-- body --> }-->
+    ///            while(<!-- condition -->);
+    ///            while(<!-- condition -->) : <!--body--> done
+    /// 
+    /// supports building the corresponding syntax tree node for the loop.</remarks>
+    [RequiresBody]
+    public class WhileGrammar : IGrammarAnalyser
+    {
+        public string GrammarName => "While loop";
+
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.While];
+
+        public TokenType[] TriggerTokenTypes => [];
+
+        public bool RequiresTermination => false;
+
+        public int CacheCode { get ; set; }
+
+        public bool Analyse(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+            if (tokens.Length < 2)
+            {
+                errorMessage = "While loop requires at least a condition and a body(optional).";
+                return true;
+            }
+            if(tokens.Length==2 && tokens[1].TokenTree != TokenTree.Group)
+            {
+                errorMessage = "While loop requires an expression scope.";
+                return true;
+            }
+            if (tokens.Length == 2)
+            {
+                return false;
+            }
+            if(tokens.Length==3 && tokens[2].TokenType != TokenType.Scope && tokens[2].TokenType != TokenType.Scope)
+            {
+                errorMessage = "While loop requires a body scope or a semicolon.";
+                return true;
+            }
+            if (tokens.Length > 3)
+            {
+                errorMessage = "While loop can only have a condition and an optional body.";
+                return true;
+            }
+            return false;
+        }
+
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        {
+            if(tokens.Length is < 2 or > 3)
+            {
+                throw new ArgumentException("While loop must have a condition and an optional body.");
+            }
+
+            var condition = tokens[1].Value as IEnumerable<Token>;
+            var body = tokens[2].Value as IEnumerable<Token>;
+            if (!expressionGrammarAnalyser.IsValidExpression(condition?.ToArray() ?? [],out string error))
+            {
+                throw new Exception($"Invalid condition in while loop: {error}");
+            }
+            var Body = grammarInterpreter.Interpret(body?.ToList() ??[], scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser);
+            return new Token(TokenType.Conditions, TokenOperation.While, TokenTree.Single, new WhileSyntaxObject(condition ?? [], Body ?? [], body is not null));
+        }
+    }
+
+    public record WhileSyntaxObject(IEnumerable<Token> Expression,IEnumerable<Token> Scope,bool hasBody);
+}
+
+
+// ===== FILE: IDebugger.cs =====
+using MiniLang.GrammarInterpreter;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Interfaces
+{
+    public interface IDebugger
+    {
+      
+        public string ViewSelf(Token Token, GrammarValidator grammarValidator = null, int indentLevel=0);
+
+    }
+
+}
+
+
+// ===== FILE: IExecutableToken.cs =====
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Interfaces
+{
+    /// <summary>
+    /// Represents a token that can be executed within a runtime context.
+    /// </summary>
+    /// <remarks>This interface defines the contract for handling and dispatching tokens based on their type
+    /// and operation. Implementations of this interface determine whether a token can be handled and provide the logic
+    /// for executing the token.</remarks>
+    public interface IExecutableToken
+    {
+        TokenType[] InvokeType { get; }
+        TokenOperation[] InvokeOperation { get; }
+
+        bool CanHandle(Token token)
+        {
+            return InvokeType.Contains(token.TokenType)
+                && (InvokeOperation.Length == 0 || InvokeOperation.Contains(token.TokenOperation));
+        }
+        /// <summary>
+        /// Dispatches the specified token within the given runtime context and returns the resulting value.
+        /// </summary>
+        /// <param name="yourToken">The token to be processed. This represents an input that drives the dispatch operation.</param>
+        /// <param name="context">The runtime context in which the token is evaluated. Provides necessary state and environment for the
+        /// operation.</param>
+        /// <returns>The resulting <see cref="RuntimeValue"/> produced by processing the token within the context.</returns>
+        RuntimeValue Dispatch(Token yourToken, RuntimeContext context);
+    }
+
+
+}
+
+
+// ===== FILE: IGrammarAnalyser.cs =====
+using CacheLily;
+using MiniLang.GrammarInterpreter;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Interfaces
+{
+    public interface IGrammarAnalyser:ICacheable
+    {
+        string GrammarName { get; }
+
+        /// <summary>
+        /// Performs syntax validation on a segment of tokens.
+        /// </summary>
+       public bool Analyse(Token[] tokens, out string errorMessage);
+
+        /// <summary>
+        /// Specifies which keyword(s) or token this analyser is responsible for.
+        /// Helps dispatcher know when to call it.
+        /// </summary>
+        TokenOperation[] TriggerTokensOperator { get; }
+        TokenType[] TriggerTokenTypes { get; }
+        /// <summary>
+        /// Whether the grammar analyser expects a semicolon (or another delimiter) to terminate.
+        /// </summary>
+        bool RequiresTermination { get; }
+
+        /// <summary>
+        /// Optionally returns a parsed result object (AST node or structure) if grammar is valid.
+        /// </summary>
+       public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
+           FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line);
+    }
+
+}
+
+
+// ===== FILE: IGrammarInterpreter.cs =====
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Interfaces
+{
+    public interface IGrammarInterpreter
+    {
+        public IEnumerable<Token> Interpret(List<Token> tokens, ScopeObjectValueManager scopeObjectValueManagerParent, FunctionDeclarationScopeManager FunctiondeclarationManager, ExpressionGrammarAnalyser expressionGrammarAnalyser);
+    }
+}
+
+
+// ===== FILE: Parser.cs =====
+using CacheLily;
+using MiniLang.Attributes;
+using MiniLang.Tokenilzer;
+using MiniLang.TokenObjects;
+using System;
+using System.Data.Common;
+using System.Linq;
+namespace MiniLang.Parser;
+
+public static partial class Parser
+{
+    /// <summary>
+    /// returns a flat tokens
+    /// </summary>
+    /// <param name="StringTokens"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public static List<Token> Parse(string[] StringTokens)
+    {
+        List<(string valueName, double Value)> LocalValues = new();
+        List<Token> tokens = new List<Token>();
+        for (int i = 0; i < StringTokens.Length; i++)
+        {
+
+            if (Tokenizer.IsNumber(StringTokens[i]))
+            {
+                tokens.Add(new Token(TokenType.Number, TokenOperation.None, TokenTree.Single, StringTokens[i]));
+            }
+            else
+            {
+                var GetTokenType = ValueContainerAttribute.GetContainerValue(typeof(TokenType), StringTokens[i]);
+
+                if (AreLetters(StringTokens[i]) && GetTokenType is (_, null))
+                {
+                    tokens.Add(new Token(TokenType.Identifier, TokenOperation.None, TokenTree.Single, StringTokens[i]));
+                    continue;
+                }
+                else if (StringTokens[i].StartsWith("\""))
+                {
+                    if (!StringTokens[i].EndsWith("\"")|| StringTokens[i].Length<2)
+                    {
+                        throw new Exception($"Unterminated string literal: {StringTokens[i]}");
+                    }
+
+                    string cleanedToken = StringTokens[i].Substring(1, StringTokens[i].Length - 2);
+
+                    tokens.Add(new Token(TokenType.StringLiteralExpression,
+                                         TokenOperation.None,
+                                         TokenTree.Single,
+                                         cleanedToken));
+
+                    continue;
+                }
+                else if (StringTokens[i].StartsWith("'"))
+                {
+                    if (!StringTokens[i].EndsWith("'") || StringTokens[i].Length < 2)
+                    {
+                        throw new Exception($"Unterminated char literal: {StringTokens[i]}");
+                    }
+
+                    string cleanedToken = StringTokens[i].Substring(1, StringTokens[i].Length - 2);
+
+                    tokens.Add(new Token(TokenType.CharLiteralExpression,
+                                         TokenOperation.None,
+                                         TokenTree.Single,
+                                         cleanedToken));
+
+                    continue;
+                }
+
+
+                if (GetTokenType.haveNext)
+                {
+
+                    var GetTokenOperation = ValueContainerAttribute.GetContainerValue(typeof(TokenOperation), StringTokens[i]);
+                    if (GetTokenOperation is (_, null))
+                        throw new Exception($"{string.Join("", StringTokens)}  : Invalid TokenOperation {StringTokens[i]}");
+
+
+                    tokens.Add(new Token((TokenType)Enum.Parse(typeof(TokenType), GetTokenType.Value),
+                         (TokenOperation)Enum.Parse(typeof(TokenOperation), GetTokenOperation.Value),
+                          TokenTree.Single, StringTokens[i]));
+
+                }
+                else if (GetTokenType is not (_, null))
+                {
+                    tokens.Add(new Token((TokenType)Enum.Parse(typeof(TokenType), GetTokenType.Value),
+                       TokenOperation.None,
+                       TokenTree.Single, StringTokens[i]));
+                }
+               
+                else
+                {
+                    throw new Exception($"Invalid or unrecognized token: '{StringTokens[i]}' at position {i}.");
+                }
+            }
+
+        }
+
+
+        return _group_token_object(tokens);
+    }
+    private static List<Token> _group_token_object(List<Token> tokens)
+    {
+        int startIndex;
+
+        while ((startIndex = tokens.FindIndex(x => x.TokenType == TokenType.ParenthesisOpen)) != -1)
+        {
+            int endIndex = FindMatchingClosingParenthesis(tokens, startIndex);
+
+            if (endIndex == -1)
+                throw new Exception("Unmatched opening parenthesis.");
+
+            var subTokens = tokens.Skip(startIndex + 1).Take(endIndex - startIndex - 1).ToList();
+
+            // Recursively process inner groups
+            var groupedSubTokens = _group_token_object(subTokens);
+
+            // Create the grouped token
+            var groupToken = new Token(TokenType.Group, TokenOperation.None, TokenTree.Group, groupedSubTokens);
+
+            // Replace the original tokens with the grouped token
+            tokens.RemoveRange(startIndex, endIndex - startIndex + 1);
+            tokens.Insert(startIndex, groupToken);
+        }
+
+        return tokens;
+    }
+
+
+    private static int FindMatchingClosingParenthesis(List<Token> tokens, int openIndex)
+    {
+        int depth = 1;
+        for (int i = openIndex + 1; i < tokens.Count; i++)
+        {
+            if (tokens[i].TokenType == TokenType.ParenthesisOpen)
+                depth++;
+            else if (tokens[i].TokenType == TokenType.ParenthesisClose)
+            {
+                depth--;
+                if (depth == 0)
+                    return i;
+            }
+        }
+
+        return -1;  // No matching closing parenthesis found
+    }
+
+
+    private static bool AreLetters(string varName)
+   => Tokenizer.IsFunctionName(varName);
+
+
+  
+
+    private static int FindEndOfExpression(string[] strings)
+    {
+        for (int i = 0; i < strings.Length; i++)
+        {
+            if (strings[i] == ";")
+                return i - 1;
+        }
+        return -1;
+    }
+    public static int FindOpenedParenthesisEnd(string[] StartParenthesis)
+    {
+        if (StartParenthesis is null || StartParenthesis.Length == 0)
+            return -1;
+        int startPr = 0;
+        int endPr = 0;
+        for (int i = 0; i < StartParenthesis.Length; i++)
+        {
+
+            if (StartParenthesis[i] == "(")
+                startPr++;
+            else if (StartParenthesis[i] == ")")
+                startPr--;
+            if (startPr == 0)
+            {
+                endPr = i;
+                break;
+            }
+
+        }
+        return startPr != 0 ? -1 : endPr;
+    }
+    public static int FindOpenedStringEnd(string[] tokens)
+    {
+        if (tokens == null || tokens.Length == 0)
+            return -1;
+
+        bool insideQuotes = false;
+        for (int i = 0; i < tokens.Length; i++)
+        {
+            if (tokens[i] == "\"")
+            {
+                insideQuotes = !insideQuotes;
+                if (!insideQuotes)
+                    return i; // found matching end
+            }
+        }
+
+        return -1; // no clos
+
+    }
+}
+
+// ===== FILE: GiveSyntaxObject.cs =====
+using MiniLang.TokenObjects;
+
+namespace MiniLang.SyntaxObjects
+{
+    public record GiveSyntaxObject(IEnumerable<Token> expression);
+}
+
+// ===== FILE: SayKeyword.cs =====
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.SyntaxObjects
+{
+    public class SayFunctionSyntaxObject
+    {
+        public string? FunctionName { get; set; }
+        public int ArgmentCounts { get; set; }
+        public IEnumerable<Token>? Argments { get; set; }
+    }
+}
+
+
+// ===== FILE: UseSyntaxObject.cs =====
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.SyntaxObjects
+{
+    public record UseSyntaxObject(string path, IEnumerable<Token> Tokens);
+
+}
+
+
+// ===== FILE: Tokenizer.cs =====
+using System;
+using System.Collections.Generic;
+using System.Text;
+namespace MiniLang.Tokenilzer;
+public static class Tokenizer
+{
+    static HashSet<string>  multiCharOps = new HashSet<string>
+    {
+        "+=", "-=", "*=","<=",">=","==","<",">","!="
+    };
+    public static string[] Tokenize(string input)
+    {
+        List<string> tokens = new();
+        StringBuilder currentToken = new();
+        bool isString = false;
+        bool isCharLiteral = false;
+
+       
+
+        for (int i = 0; i < input.Length; i++)
+        {
+            char c = input[i];
+
+            if (c == '\n' && !isString && !isCharLiteral)
+            {
+                if (currentToken.Length > 0)
+                {
+                    tokens.Add(currentToken.ToString());
+                    currentToken.Clear();
+                }
+                continue;
+            }
+
+            if (c == '"')
+            {
+                currentToken.Append(c);
+                if (isString)
+                {
+                    tokens.Add(currentToken.ToString());
+                    currentToken.Clear();
+                }
+                isString = !isString;
+                continue;
+            }
+
+            if (c == '\'' && !isString)
+            {
+                currentToken.Append(c);
+                if (isCharLiteral)
+                {
+                    tokens.Add(currentToken.ToString());
+                    currentToken.Clear();
+                }
+                isCharLiteral = !isCharLiteral;
+                continue;
+            }
+
+            if (isString || isCharLiteral)
+            {
+                currentToken.Append(c);
+                continue;
+            }
+
+            if (char.IsDigit(c) || (c == '.' && currentToken.Length > 0 && char.IsDigit(currentToken[^1])))
+            {
+                currentToken.Append(c);
+                continue;
+            }
+
+            if (char.IsLetter(c))
+            {
+                currentToken.Append(c);
+                continue;
+            }
+
+            // Finish current token if separator
+            if (currentToken.Length > 0)
+            {
+                tokens.Add(currentToken.ToString());
+                currentToken.Clear();
+            }
+
+            // Handle multi-character operators
+            if (!char.IsWhiteSpace(c))
+            {
+                string twoChar = i + 1 < input.Length ? $"{c}{input[i + 1]}" : c.ToString();
+
+                if (multiCharOps.Contains(twoChar))
+                {
+                    tokens.Add(twoChar);
+                    i++; // skip next character
+                }
+                else
+                {
+                    tokens.Add(c.ToString());
+                }
+            }
+        }
+
+        if (currentToken.Length > 0)
+        {
+            tokens.Add(currentToken.ToString());
+        }
+
+        return tokens.ToArray();
+    }
+
+    private static bool IsSeparator(char c)
+    {
+        return char.IsPunctuation(c) || char.IsSymbol(c);
+    }
+    public static bool IsFunctionName(string str)
+    {
+      
+        return str.Length>0 && isChar(str[0]);
+    }
+    public static bool isChar(char ch)
+    {
+
+        return ch is >= 'a' and <= 'z' || ch is >= 'A' and <= 'Z';
+    }
+    public static bool IsNumber(string numstr)
+    {
+        bool hitdot = false;
+        for (int i = 0; i < numstr.Length; i++)
+        {
+            if (numstr[i] >= '0' && numstr[i] <= '9')
+                continue;
+            if (hitdot is false && numstr[i] == '.')
+            {
+                if (i + 1 < numstr.Length && IsNumber(numstr[i + 1]))
+                {
+                    hitdot = true;
+                    continue;
+                }
+            }
+            return false;
+        }
+        return true;
+    }
+    private static bool IsNumber(char num)
+    {
+
+        return num >= '0' && num <= '9';
+    }
+}
+
+// ===== FILE: Token.cs =====
+using CacheLily;
+
+namespace MiniLang.TokenObjects;
+public record Token(TokenType TokenType,TokenOperation TokenOperation,TokenTree TokenTree,object Value):ICacheable
+{
+    public int CacheCode { get ; set ; }
+
+    public Token New()
+    {
+        return new Token(
+            TokenType,
+            TokenOperation,
+            TokenTree,
+            CloneValue(Value)
+        );
+    }
+
+    private dynamic CloneValue(object value)
+    {
+        if (value is List<Token> tokenList)
+        {
+            return tokenList.Select(t => t.New()).ToList();
+        }
+
+        return value;
+    }
+}
+
+
+// ===== FILE: TokenOperation.cs =====
+namespace MiniLang.TokenObjects
+{
+    using MiniLang.Attributes;
+
+    public enum TokenOperation
+    {
+        None = 0,
+
+     
+
+        #region Operations
+        [ValueContainer(false, "+")]
+        AddOperation,
+
+        [ValueContainer(false, "-")]
+        SubtractOperation,
+
+        [ValueContainer(false, "*")]
+        MultiplyOperation,
+
+        [ValueContainer(false, "/")]
+        DivideOperation,
+
+        [ValueContainer(false, "^")]
+        PowerOperation,
+        #region Conditon
+        [ValueContainer(false, "==")]
+
+        EqualOperation,
+        [ValueContainer(false, "<")]
+        LessThanOperation,
+
+        [ValueContainer(false, ">")]
+        GreaterThanOperation,
+        [ValueContainer(false, ">=")]
+        GreaterThanOrEqual,
+        [ValueContainer(false, "<=")]
+        LessThanOrEqual,
+        [ValueContainer(false, "!=")]
+        Not,
+        #endregion
+
+        [ValueContainer(false, "|")]
+        OrOperation,
+
+        [ValueContainer(false, "&")]
+        AndOperation,
+
+        [ValueContainer(false, "%")]
+        ModuloOperation,
+        [ValueContainer(false,"=")]
+        SETTER,
+        [ValueContainer(false, "-=")]
+        SETTERSubtractOperation,
+        [ValueContainer(false, "+=")]
+        SETTERAddOperation,
+        #endregion
+
+        #region Keywords
+        [ValueContainer(false, "use")]
+        use,
+
+        [ValueContainer(false, "make")]
+        make,
+
+        [ValueContainer(false, "say")]
+        SayKeyword,
+        [ValueContainer(false, "typeof")]
+        @typeof,
+        [ValueContainer(false, "give")]
+        give,
+        #endregion
+
+        #region Conditions
+       
+        [ValueContainer(false, "if")]
+        If,
+
+     
+        [ValueContainer(false, "else")]
+        @else,
+        [ValueContainer(false, "while")]
+        While,
+        #endregion
+        #region Return Types operators
+        [ValueContainer(false,"nothing")]
+        ReturnsNothing,
+        [ValueContainer(false,"number")]
+        ReturnsNumber,
+        [ValueContainer(false, "string")]
+        ReturnsString,
+        [ValueContainer(false, "object")]
+        ReturnsObject,
+        #endregion
+
+    }
+}
+
+
+// ===== FILE: TokenTree.cs =====
+namespace MiniLang.TokenObjects;
+public enum TokenTree
+{
+    Single,
+    Group
+}
+
+
+// ===== FILE: TokenType.cs =====
+using MiniLang.Attributes;
+
+namespace MiniLang.TokenObjects;
+public enum TokenType
+{
+    None,
+    Group,
+    [ValueContainer(true, "=","-=","+=")]
+    SETTERS,
+    
+    [ValueContainer(true, "say", "show", "typeof")]
+    Function,
+    FunctionCall,
+    Number,
+    Scope,
+    [ValueContainer(true, "+", "-", "*", "/", "%", "^","<=","==",">=",">","<","!=")]
+    Operation,
+
+    [ValueContainer(false, "(")]
+    ParenthesisOpen,
+    [ValueContainer(false, ")")]
+    ParenthesisClose,
+
+    [ValueContainer(true, "if", "else","while")]
+    Conditions,
+
+
+    [ValueContainer(true, "use", "make", "give")]
+    Keyword,
+    Expression,
+
+    [ValueContainer(false, "{")]
+    CurlybracketStart,
+    [ValueContainer(false, "}")]
+    CurlybracketEnds,
+    [ValueContainer(false, ":")]
+    Then,
+    [ValueContainer(false, "done")]
+    Done,
+    [ValueContainer(false,";")]
+    Semicolon,
+    [ValueContainer(false, ".")]
+    Dot,
+
+    StringLiteralExpression,
+    [ValueContainer(false, ",")]
+    Comma,
+    CharLiteralExpression,
+    Identifier,
+
+    [ValueContainer(false, "give")]
+    Return,
+
+    [ValueContainer(false,"fn")]
+    NewFunction,
+    [ValueContainer(true,"number", "string","object","nothing")]
+    ReturnType
+
+}
+
+
+// ===== FILE: RequiresBody.cs =====
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Attributes.GrammarAttribute
+{
+    /// <summary>
+    /// Tells the engine to treat this grammar as requiring a body block if no terminator (e.g. semicolon) is present.
+    /// Used for things like `if`, `fn`, `loop`, etc.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class)]
+    public class RequiresBody : Attribute
+    {
+    }
+}
+
+
+// ===== FILE: TriggerTokenType.cs =====
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Attributes.GrammarAttribute
+{
+    public class TriggerTokenType:Attribute
+    {
+        public TriggerType TriggerType { get;}
+        public TriggerTokenType(TriggerType TriggerType)
+        {
+            this.TriggerType = TriggerType;
+        }
+    }
+}
+
+
+// ===== FILE: TriggerType.cs =====
+namespace MiniLang.Attributes.GrammarAttribute
+{
+    public enum TriggerType
+    {
+        Type,
+        Operator
+    }
+}
+
+
+// ===== FILE: ExpressionGrammarAnalyser.cs =====
+using MiniLang.Functions;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace MiniLang.GrammarInterpreter.GrammarValidation
+{
+    public class ExpressionGrammarAnalyser
+    {
+        private readonly ScopeObjectValueManager _scope;
+        private readonly FunctionDeclarationScopeManager _functionManager;
+
+        public ExpressionGrammarAnalyser(ScopeObjectValueManager scope, FunctionDeclarationScopeManager functionManager)
+        {
+            _scope = scope;
+            _functionManager = functionManager;
+        }
+
+        public bool IsValidExpression(Token[] tokens, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (tokens == null || tokens.Length == 0)
+            {
+                errorMessage = "Expression is empty.";
+                return false;
+            }
+
+            int i = 0;
+            bool valid = ParseExpression(tokens, ref i, out errorMessage);
+
+            if (!valid)
+                return false;
+
+            if (i != tokens.Length)
+            {
+                errorMessage = $"Unexpected token at position {i}: '{tokens[i].Value}'";
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool ParseExpression(Token[] tokens, ref int i, out string error)
+        {
+            error = null;
+
+            if (!ParseOperand(tokens, ref i, out error))
+                return false;
+
+            while (i < tokens.Length && tokens[i].TokenType == TokenType.Operation)
+            {
+                i++; // skip operator
+
+                if (!ParseOperand(tokens, ref i, out error))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private bool ParseOperand(Token[] tokens, ref int i, out string error)
+        {
+            error = null;
+            if (i >= tokens.Length)
+            {
+                error = "Expected operand but reached end of tokens.";
+                return false;
+            }
+
+            var token = tokens[i];
+
+            if (token.TokenTree == TokenTree.Group && token.Value is IEnumerable<Token> groupTokens)
+            {
+                var inner = groupTokens.ToArray();
+                int innerIndex = 0;
+                if (!ParseExpression(inner, ref innerIndex, out error))
+                    return false;
+
+                if (innerIndex != inner.Length)
+                {
+                    error = "Unconsumed tokens inside group.";
+                    return false;
+                }
+
+                i++;
+                return true;
+            }
+
+            switch (token.TokenType)
+            {
+                case TokenType.Number:
+                case TokenType.StringLiteralExpression:
+                case TokenType.ReturnType:
+                    i++;
+                    return true;
+
+                case TokenType.Identifier:
+                    string name = token.Value?.ToString() ?? "";
+                    if (!_scope.Exists(name))
+                    {
+                        error = $"Undeclared identifier: '{name}'.";
+                        return false;
+                    }
+                    i++;
+                    return true;
+
+                case TokenType.FunctionCall:
+                    if (token.Value is FunctionTokenObject f)
+                    {
+                        if (_functionManager == null || !_functionManager.Exists(f.FunctionName, f.FunctionArgmentsCount))
+                        {
+                            error = $"Undeclared function: '{f.FunctionName}' with {f.FunctionArgmentsCount} arguments.";
+                            return false;
+                        }
+
+                        foreach (var arg in f.FunctionArgments)
+                        {
+                            var argTokens = arg.Argment.ToArray();
+                            int argIndex = 0;
+                            if (!ParseExpression(argTokens, ref argIndex, out error))
+                                return false;
+                            if (argIndex != argTokens.Length)
+                            {
+                                error = $"Invalid argument at position {arg.Index} in function '{f.FunctionName}'.";
+                                return false;
+                            }
+                        }
+                        i++;
+                        return true;
+                    }
+                    error = "Malformed function token.";
+                    return false;
+
+                default:
+                    error = $"Unexpected token: {token.TokenType}";
+                    return false;
+            }
+        }
+    }
+}
+
+
+// ===== FILE: GrammarAnalysisResult.cs =====
+using MiniLang.TokenObjects;
+
+namespace MiniLang.GrammarInterpreter
+{
+    public record GrammarAnalysisResult
+    {
+        public bool HasError { get; init; }
+        public string? ErrorMessage { get; init; }
+        public Token? Node { get; init; }
+
+        public static GrammarAnalysisResult Success(Token node) =>
+            new GrammarAnalysisResult { HasError = false, Node = node };
+
+        public static GrammarAnalysisResult Error(string message) =>
+            new GrammarAnalysisResult { HasError = true, ErrorMessage = message };
+    }
+}
+
+
+// ===== FILE: GrammarInterpreter.cs =====
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using MiniLang.SyntaxObjects;
+
+namespace MiniLang.GrammarInterpreter
+{
+
+    public class GrammarInterpreter : IGrammarInterpreter
+    {
+        private GrammarValidator Validator { get; }
+        public List<Token> Tokens { get; }
+
+        public GrammarInterpreter(GrammarValidator validator, IEnumerable<Token> tokens)
+        {
+            Validator = validator;
+            Tokens = tokens.ToList();
+        }
+        public IEnumerable<Token> Interpret()
+        {
+            ScopeObjectValueManager scopeObjectValueManager = new ScopeObjectValueManager();
+            FunctionDeclarationScopeManager FunctiondeclarationManager = new FunctionDeclarationScopeManager();
+            ExpressionGrammarAnalyser expressionGrammarAnalyser = new(scopeObjectValueManager, FunctiondeclarationManager);
+            return Interpret(Tokens, scopeObjectValueManager, FunctiondeclarationManager, expressionGrammarAnalyser);
+        }
+
+        public IEnumerable<Token> Interpret(List<Token> tokens, ScopeObjectValueManager scopeObjectValueManagerParent, FunctionDeclarationScopeManager FunctiondeclarationManager, ExpressionGrammarAnalyser expressionGrammarAnalyser)
+        {
+            tokens = TokenBuilder.BuildStructuredTokens(tokens);
+            List<Token> results = new();
+            int i = 0;
+
+            while (i < tokens.Count)
+            {
+                var currentToken = tokens[i];
+                var grammarAnalyser = Validator.ResolveAnalyser(currentToken);
+
+                // If a grammar analyser requires a body , look for the next scope
+                if (grammarAnalyser != null && grammarAnalyser.GetType().GetCustomAttributes(typeof(RequiresBody), true).FirstOrDefault() is not null)
+                {
+                    int scopeIndex = -1;
+                    for (int j = i + 1; j < tokens.Count; j++)
+                    {
+                        if (tokens[j].TokenTree == TokenTree.Group && tokens[j].TokenType == TokenType.Scope && tokens[j].Value is List<Token>)
+                        {
+                            scopeIndex = j;
+                            break;
+                        }
+                    }
+
+                    if (scopeIndex == -1)
+                        throw new Exception($"Expected body scope for token '{currentToken.Value}' at index {i}");
+
+                    var headerSegment = tokens.Skip(i).Take(scopeIndex + 1 - i).ToArray();
+                    var result = Validator.Analyse(headerSegment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i);
+                    if (result.HasError)
+                        throw new Exception(result.ErrorMessage);
+
+                    results.Add(result.Node!);
+
+                    //using (ScopeObjectValueManager newScope = new ScopeObjectValueManager())
+                    //{
+                    //    newScope.Parent = scopeObjectValueManagerParent;
+                    //    ExpressionGrammarAnalyser expressionGrammar = new(newScope);
+
+                    //    var innerGroup = (List<Token>)tokens[scopeIndex].Value!;
+                    //    var innerResult = Interpret(innerGroup, newScope, expressionGrammar);
+                    //    results.Add(new Token(TokenType.Scope, TokenOperation.None, TokenTree.Group, innerResult.ToList()));
+                    //}
+
+                    i = scopeIndex + 1;
+                    continue;
+                }
+
+                // recursively interpret inner groups
+                if (currentToken.TokenTree == TokenTree.Group && currentToken.TokenType == TokenType.Scope && currentToken.Value is List<Token> innerGroupScope)
+                {
+                    using (ScopeObjectValueManager newScope = new ScopeObjectValueManager())
+                    {
+                        using (FunctionDeclarationScopeManager newFunctionScope = new FunctionDeclarationScopeManager())
+                        {
+                            newFunctionScope.ParentScope = FunctiondeclarationManager;
+
+                        newScope.Parent = scopeObjectValueManagerParent;
+                        ExpressionGrammarAnalyser expressionGrammar = new(newScope, FunctiondeclarationManager);
+                        var interpreted = Interpret(innerGroupScope, newScope, newFunctionScope, expressionGrammar);
+                        results.Add(new Token(TokenType.Scope, TokenOperation.None, TokenTree.Group, interpreted.ToList()));
+                        }
+                            
+
+                        i++;
+                    }
+                    continue;
+                }
+
+                int end = IndexOf(tokens, TokenType.Semicolon, i);
+
+                if (end == -1)
+                {
+                    if (grammarAnalyser != null && grammarAnalyser.RequiresTermination != null)
+                    {
+                        throw new Exception($"'{currentToken.Value}' expects a semicolon at index {i}.");
+                    }
+                    else
+                    {
+                        end = tokens.Count;
+                    }
+                }
+
+                var segment = tokens.Skip(i).Take(end - i).ToArray();
+                var analyseResult = Validator.Analyse(segment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i);
+
+                if (analyseResult.HasError)
+                    throw new Exception(analyseResult.ErrorMessage);
+
+                results.Add(analyseResult.Node!);
+                i = end + 1;
+            }
+
+            return results;
+        }
+
+        private int IndexOf(List<Token> tokens, TokenType type, int start)
+        {
+            for (int i = start; i < tokens.Count; i++)
+            {
+                if (tokens[i].TokenType == type)
+                    return i;
+            }
+            return -1;
+        }
+        /// <summary>
+        /// Processes a sequence of tokens, expanding tokens with a <see cref="TokenOperation.use"/> operation into
+        /// their inner tokens while preserving other tokens unchanged.
+        /// </summary>
+        /// <remarks>This method iterates through the provided sequence of tokens and checks each token's
+        /// operation.  If the operation is <see cref="TokenOperation.use"/> and the token's value is a <see
+        /// cref="UseSyntaxObject"/>,  the inner tokens of the <see cref="UseSyntaxObject"/> are yielded. Otherwise, the
+        /// original token is yielded.</remarks>
+        /// <param name="tokens">The sequence of tokens to process. Cannot be null.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> containing the processed tokens. Tokens with a  <see
+        /// cref="TokenOperation.use"/> operation are replaced by their inner tokens, while other tokens  are returned
+        /// as-is.</returns>
+        public IEnumerable<Token> InjectUse(IEnumerable<Token> tokens)
+        {
+            foreach (var token in tokens)
+            {
+                if (token.TokenOperation == TokenOperation.use  && token.Value is UseSyntaxObject use)
+                {
+                    foreach (var innerToken in use.Tokens)
+                    {
+                        yield return innerToken;
+                    }
+                }
+                else
+                {
+                    yield return token;
+                }
+            }
+        }
+    }
+
+
+}
+
+
+// ===== FILE: GrammarValidator.cs =====
+using CacheLily;
+using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Interfaces;
+using MiniLang.GrammarInterpreter.GrammarDummyScopes;
+using MiniLang.GrammarInterpreter.GrammarValidation;
+using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+
+namespace MiniLang.GrammarInterpreter
+{
+    public class GrammarValidator
+    {
+        private readonly Cache<IGrammarAnalyser> _cache;
+        private readonly IReadOnlyList<IGrammarAnalyser> _grammarAnalysers;
+
+        public GrammarValidator(IEnumerable<IGrammarAnalyser> grammarAnalysers)
+        {
+            _grammarAnalysers = grammarAnalysers?.ToList()
+                                ?? throw new ArgumentNullException(nameof(grammarAnalysers));
+
+            _cache = new Cache<IGrammarAnalyser>(
+                capacity: 100,
+                200,
+                false
+            );
+        }
+
+        /// <summary>
+        /// Analyzes the given tokens using the appropriate grammar handler.
+        /// </summary>
+        public GrammarAnalysisResult Analyse(Token[] tokens,ScopeObjectValueManager scopeStack, ExpressionGrammarAnalyser expressionGrammar,
+            FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter IGrammarInterpreter, int line)
+        {
+            if (tokens == null || tokens.Length == 0)
+            {
+                return GrammarAnalysisResult.Error("[Grammar Error] Empty or null token array.");
+            }
+            if (tokens[0].TokenOperation == TokenOperation.@else)
+            {
+                return GrammarAnalysisResult.Error("'else' cannot be used standalone — it must follow an if block.");
+            }
+            var firstToken = tokens[0];
+
+            var analyser = _cache.Invoke(GetType(), ResolveAnalyser, firstToken);
+
+            if (analyser == null)
+            {
+                return GrammarAnalysisResult.Error(
+                    $"[Grammar Error] No grammar handler found for token: {firstToken.TokenOperation} (Type: {firstToken.TokenType}) on line {line}.");
+            }
+
+            if (analyser.Analyse(tokens, out string? message))
+            {
+                return GrammarAnalysisResult.Error(message ?? "[Grammar Error] Unknown grammar issue.");
+            }
+
+            var node = analyser.BuildNode(tokens, scopeStack,expressionGrammar, FunctionDeclarationManager, IGrammarInterpreter, line);
+            return GrammarAnalysisResult.Success(node);
+        }
+
+        public IGrammarAnalyser? ResolveAnalyser(Token firstToken)
+        {
+            IGrammarAnalyser grammarAnalyser = null;
+             _grammarAnalysers.ToList().ForEach(analyser =>
+            {
+                if(analyser.GetType().GetCustomAttribute<TriggerTokenType>(false) is TriggerTokenType trigger)
+                {
+                    if(trigger.TriggerType == TriggerType.Type)
+                    {
+                       if (analyser.TriggerTokenTypes.Contains(firstToken.TokenType))
+                            grammarAnalyser = analyser;
+                    }
+                    else
+                    {
+                        if (analyser.TriggerTokensOperator.Contains(firstToken.TokenOperation))
+                            grammarAnalyser = analyser;
+                    }
+                }
+                else
+                {
+                    if (analyser.TriggerTokensOperator.Contains(firstToken.TokenOperation))
+                        grammarAnalyser = analyser;
+                }
+            });
+            return grammarAnalyser;
+        }
+    }
+}
+
+
+// ===== FILE: TokenBuilder.cs =====
+using MiniLang.Functions;
+using MiniLang.TokenObjects;
+
+namespace MiniLang.GrammarInterpreter
+{
+    public static class TokenBuilder
+    {
+        public static List<Token> BuildStructuredTokens(List<Token> tokens)
+        {
+            List<Token> groupedTokens = new();
+            int i = 0;
+
+            while (i < tokens.Count)
+            {
+                Token current = tokens[i];
+
+                // Function call detection: Identifier followed by Group (i.e., (...))
+                if (current.TokenType == TokenType.Identifier && i + 1 < tokens.Count && tokens[i + 1].TokenTree == TokenTree.Group && tokens[i + 1].Value is List<Token> group)
+                {
+                    var resolvedArgs = new List<FunctionArgments>();
+                    var args = SplitArguments(group);
+
+                    foreach (var (arg, index) in args.Select((arg, idx) => (arg, idx)))
+                    {
+                        var deep = BuildStructuredTokens(arg);
+                        resolvedArgs.Add(new FunctionArgments(deep, index));
+                    }
+
+                    var functionToken = new FunctionTokenObject(
+                        current.Value.ToString()!,
+                        resolvedArgs.Count,
+                        resolvedArgs
+                    );
+
+                    groupedTokens.Add(new Token(TokenType.FunctionCall, TokenOperation.None, TokenTree.Single, functionToken));
+                    i += 2; // Skip identifier and group
+                    continue;
+                }
+
+                // Group { ... } scope blocks
+                if (current.TokenType == TokenType.CurlybracketStart)
+                {
+                    int end = FindCurlyScopeEnd(tokens, i);
+                    if (end == -1)
+                        throw new Exception("Unclosed scope block");
+
+                    var inner = tokens.GetRange(i + 1, end - i - 1);
+                    var scoped = BuildStructuredTokens(inner);
+                    groupedTokens.Add(new Token(TokenType.Scope, TokenOperation.None, TokenTree.Group, scoped));
+                    i = end + 1;
+                    continue;
+                }
+
+                // 'then' starts a scope, everything until the matching 'done' ends the scope
+                else if (current.TokenType == TokenType.Then)
+                {
+                    int j = i + 1;
+                    int depth = 1;
+
+                    for (; j < tokens.Count; j++)
+                    {
+                        if (tokens[j].TokenType == TokenType.Then)
+                            depth++;
+                        else if (tokens[j].TokenType == TokenType.Done)
+                        {
+                            depth--;
+                            if (depth == 0)
+                                break;
+                        }
+                    }
+
+                    if (j >= tokens.Count || depth != 0)
+                        throw new Exception("Missing 'done' to close 'then' block");
+
+                    var scopeTokens = tokens.GetRange(i + 1, j - i - 1);
+                    var scoped = BuildStructuredTokens(scopeTokens);
+                    groupedTokens.Add(new Token(TokenType.Scope, TokenOperation.None, TokenTree.Group, scoped));
+                    i = j + 1;
+                    continue;
+                }
+
+                groupedTokens.Add(current);
+                i++;
+            }
+
+            return groupedTokens;
+        }
+
+        private static int FindCurlyScopeEnd(List<Token> tokens, int start)
+        {
+            int depth = 0;
+            for (int i = start; i < tokens.Count; i++)
+            {
+                if (tokens[i].TokenType == TokenType.CurlybracketStart) depth++;
+                else if (tokens[i].TokenType == TokenType.CurlybracketEnds) depth--;
+                if (depth == 0) return i;
+            }
+            return -1;
+        }
+
+        private static List<List<Token>> SplitArguments(List<Token> tokens)
+        {
+            List<List<Token>> args = new();
+            List<Token> current = new();
+            int parenDepth = 0;
+
+            foreach (var token in tokens)
+            {
+                if (token.TokenType == TokenType.Comma && parenDepth == 0)
+                {
+                    args.Add(new List<Token>(current));
+                    current.Clear();
+                    continue;
+                }
+                if (token.TokenType == TokenType.ParenthesisOpen) parenDepth++;
+                if (token.TokenType == TokenType.ParenthesisClose) parenDepth--;
+                current.Add(token);
+            }
+
+            if (current.Count > 0)
+                args.Add(current);
+
+            return args;
+        }
+    }
+}
+
+
+// ===== FILE: FunctionDeclarationScopeManager.cs =====
+using MiniLang.Functions;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarInterpreter.GrammerdummyScopes
+{
+    using global::MiniLang.TokenObjects;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
+    namespace MiniLang.Functions
+    {
+        /// <summary>
+        /// Manages function declarations within a given scope, with optional parent scope access.
+        /// </summary>
+        public class FunctionDeclarationScopeManager:IDisposable
+        {
+            private  List<FunctionTokenObject> _scopeFunctions = new();
+
+            /// <summary>
+            /// Optional reference to the parent function scope, used for hierarchical lookup.
+            /// </summary>
+            public FunctionDeclarationScopeManager? ParentScope { get; set; }
+
+            /// <summary>
+            /// Adds a new function declaration to the current scope.
+            /// </summary>
+            /// <param name="function">The function token object to add.</param>
+            /// <exception cref="Exception">Thrown if a function with the same name already exists in this scope.</exception>
+            public void Add(FunctionTokenObject function)
+            {
+                if (_scopeFunctions.Any(f => f.FunctionName == function.FunctionName&&f.FunctionArgmentsCount== function.FunctionArgmentsCount))
+                    throw new Exception($"Function '{function.FunctionName}' is already declared in this scope.");
+
+                _scopeFunctions.Add(function);
+            }
+            public void Remove(FunctionTokenObject function)
+            {
+                if (!_scopeFunctions.Any(f => f.FunctionName == function.FunctionName && f.FunctionArgmentsCount == function.FunctionArgmentsCount))
+                    throw new Exception($"Function '{function.FunctionName}' is already declared in this scope.");
+
+                _scopeFunctions.Remove(function);
+            }
+            /// <summary>
+            /// Checks if a function is declared in the current scope or any parent scope.
+            /// </summary>
+            public bool Exists(string functionName,int functionCount) =>
+                _scopeFunctions.Any(f => f.FunctionName == functionName&& f.FunctionArgmentsCount == functionCount) ||
+                (ParentScope != null && ParentScope._scopeFunctions.Any(x=>x.FunctionName == functionName  &&x.FunctionArgmentsCount == functionCount));
+            //public TokenType? GetReturnType(string functionName, int functionCount)
+            //{
+            //    var ReturnType = _scopeFunctions.FirstOrDefault(f => f.FunctionName == functionName && f.FunctionArgmentsCount == functionCount);
+            //    if(ReturnType == null)
+            //    {
+            //        var ParentReturnType  = ParentScope?.GetReturnType(functionName, functionCount);
+            //        if(ParentReturnType is null)
+            //        {
+            //            throw new Exception($"Function '{functionName}' is not declared in any accessible scope with the argment counts.");
+            //        }
+            //        return ParentReturnType;
+            //    }
+            //    return ReturnType.;
+            //}
+            /// <summary>
+            /// Retrieves a function by name from the current or parent scope.
+            /// </summary>
+            /// <param name="functionName">The name of the function to look up.</param>
+            /// <returns>The corresponding FunctionTokenObject.</returns>
+            /// <exception cref="Exception">Thrown if the function is not found in any scope.</exception>
+            public FunctionTokenObject Get(string functionName,int FunctionCount)
+            {
+                var func = _scopeFunctions.FirstOrDefault(f => f.FunctionName == functionName&& f.FunctionArgmentsCount == FunctionCount);
+
+                if (func != null)
+                    return func;
+                var first = ParentScope?.Get(functionName, FunctionCount);
+                if (first != null )
+                    return first;
+
+                throw new Exception($"Function '{functionName}' is not declared in any accessible scope with the argment counts.");
+            }
+
+            /// <summary>
+            /// Clears all functions from this scope. Parent is not affected.
+            /// </summary>
+            public void Clear() => _scopeFunctions.Clear();
+
+            public void Dispose()
+            {
+                _scopeFunctions = null;
+            }
+        }
+    }
+
+}
+
+
+// ===== FILE: ScopeObject.cs =====
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.GrammarInterpreter.GrammerdummyScopes
+{
+    public class ScopeObjectValue
+    {
+        public string Identifier { get; set; }
+        public bool IsAssigned { get; set; }
+        public TokenType TokenType { get; set; }
+    }
+
+}
+
+
+// ===== FILE: ScopeObjectValueManager.cs =====
+using MiniLang.GrammarInterpreter.GrammerdummyScopes;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
+{
+    public class ScopeObjectValueManager : IDisposable
+    {
+        private List<ScopeObjectValue> _scopes = new();
+
+        /// <summary>
+        /// The parent scope — walk up this chain to access outer-scope values.
+        /// </summary>
+        public ScopeObjectValueManager? Parent { get; set; }
+
+        public void Add(ScopeObjectValue value)
+        {
+            if (_scopes.Any(x => x.Identifier == value.Identifier))
+                throw new Exception($"Identifier '{value.Identifier}' is already declared in this scope.");
+
+            _scopes.Add(value);
+        }
+        public TokenType GetTypeOf(string identifier)
+        {
+            if (FindScopeWith(identifier) is ScopeObjectValue scopeObjectValue) return scopeObjectValue.TokenType;
+            throw new Exception($"Cannot find typeof '{identifier}' — it was not declared.");
+
+        }
+        public void MarkAssigned(string identifier)
+        {
+            var scope = FindScopeWith(identifier);
+
+            if (scope == null)
+                throw new Exception($"Cannot assign to '{identifier}' — it was not declared in any scope.");
+
+            scope.IsAssigned = true;
+        }
+
+        public bool Exists(string identifier) => FindScopeWith(identifier) != null;
+
+        public bool IsAssigned(string identifier)
+        {
+            var scope = FindScopeWith(identifier);
+
+            if (scope == null)
+                throw new Exception($"Cannot check assignment of '{identifier}' — it was not declared.");
+
+            return scope.IsAssigned;
+        }
+
+        private ScopeObjectValue? FindScopeWith(string identifier)
+        {
+
+
+            var match = _scopes.FirstOrDefault(x => x.Identifier == identifier);
+            if (match != null)
+                return match;
+
+
+            return Parent?.FindScopeWith(identifier);
+        }
+
+        public void Clear()
+        {
+            _scopes.Clear();
+            // Don't clear parent — just this instance
+        }
+
+        public void Dispose()
+        {
+            _scopes = null;
+        }
+    }
+}
+
+
+// ===== FILE: RuntimeEngine.cs =====
+using MiniLang.Runtime.Executor;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.Execution
+{
+    public class RuntimeEngine
+    {
+        private readonly ExecutableTokenDispatcher _dispatcher;
+        private readonly RuntimeContext _context;
+
+        public RuntimeEngine(ExecutableTokenDispatcher dispatcher, RuntimeContext context)
+        {
+            _dispatcher = dispatcher;
+            _context = context;
+        }
+
+        public RuntimeValue Execute(List<Token> tokens)
+        {
+            RuntimeValue last = new RuntimeValue(TokenType.ReturnType,TokenOperation.ReturnsNothing,null);
+
+            foreach (var token in tokens)
+            {
+                var handler = _dispatcher.Resolve(token.TokenType, token.TokenOperation);
+                if (handler == null)
+                {
+                    throw new InvalidOperationException(
+                        $"[Runtime::RuntimeEngine] No executable found for token type '{token.TokenType}' with operation '{token.TokenOperation}'");
+                }
+
+                var result = handler.Dispatch(token, _context);
+
+                if (result is RuntimeValue rv)
+                {
+                    last = rv;
+
+                    // Return handling (e.g., stop on return if in a function context)
+                    if (_context.ReturnValueHolder != null &&
+                        _context.ReturnValueHolder.returnOperator != TokenOperation.ReturnsNothing)
+                    {
+                        return rv;
+                    }
+                }
+            }
+
+            return last;
+        }
+    }
+}
+
+
+// ===== FILE: ExecutableTokenDispatcher.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.Executor
+{
+    public class ExecutableTokenDispatcher
+    {
+        private readonly List<IExecutableToken> _executables;
+
+        public ExecutableTokenDispatcher(IEnumerable<IExecutableToken> executables)
+        {
+            _executables = executables.ToList();
+        }
+        public IExecutableToken? Resolve(TokenType tokenType, TokenOperation tokenOperation)
+            => _executables.FirstOrDefault(x => x.InvokeOperation.Contains(tokenOperation) && x.InvokeType.Contains(tokenType));
+        
+    }
+}
+
+
+// ===== FILE: InterpolatedStringEvaluator.cs =====
+using MiniLang.Runtime.Expression;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.Expression
+{
+    public class InterpolatedStringEvaluator
+    {
+        private readonly RuntimeExpressionEvaluator _evaluator;
+
+        public InterpolatedStringEvaluator(RuntimeExpressionEvaluator evaluator)
+        {
+            _evaluator = evaluator;
+        }
+
+        public string Evaluate(Token token, RuntimeContext context)
+        {
+            if (token.TokenType != TokenType.StringLiteralExpression || token.Value is not string raw)
+                throw new InvalidOperationException("Invalid string literal for interpolation.");
+
+            var result = new StringBuilder();
+            for (int i = 0; i < raw.Length;)
+            {
+                if (raw[i] == '$' && i + 1 < raw.Length && raw[i + 1] == '(')
+                {
+                    i += 2;
+                    int depth = 1;
+                    var exprBuilder = new StringBuilder();
+
+                    while (i < raw.Length && depth > 0)
+                    {
+                        if (raw[i] == '(') depth++;
+                        else if (raw[i] == ')') depth--;
+
+                        if (depth > 0)
+                            exprBuilder.Append(raw[i]);
+
+                        i++;
+                    }
+
+                    var expr = exprBuilder.ToString();
+
+                    // Tokenize and parse expression
+                    var tokens = MiniLang.Tokenilzer.Tokenizer.Tokenize(expr);
+                    var parsedTokens = MiniLang.Parser.Parser.Parse(tokens); 
+
+                    var value = _evaluator.Evaluate(parsedTokens);
+                    result.Append(value.Value?.ToString());
+                }
+                else
+                {
+                    result.Append(raw[i]);
+                    i++;
+                }
+            }
+
+            return result.ToString();
+        }
+    }
+}
+
+
+// ===== FILE: RuntimeExpressionEvaluator.cs =====
+using MiniLang.Functions;
+using MiniLang.Runtime.Expression;
+using MiniLang.Runtime.RuntimeExecutors.Builtins;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MiniLang.Runtime.Expression
+{
+    public class RuntimeExpressionEvaluator
+    {
+        private readonly RuntimeContext _context;
+        private List<Token> _tokens;
+        private int _pos;
+
+        public RuntimeExpressionEvaluator(RuntimeContext context)
+        {
+            _context = context;
+        }
+
+        public RuntimeValue Evaluate(List<Token> tokens)
+        {
+            _tokens = tokens;
+            _pos = 0;
+            return ParseExpression();
+        }
+
+        private RuntimeValue ParseExpression(int precedence = 0)
+        {
+            var left = ParsePrimary();
+
+            while (_pos < _tokens.Count && IsOperator(_tokens[_pos], out int opPrecedence) && opPrecedence >= precedence)
+            {
+                var opToken = _tokens[_pos++];
+                var right = ParseExpression(opPrecedence + 1);
+                left = ApplyOperator(opToken, left, right);
+            }
+
+            return left;
+        }
+
+        private RuntimeValue ParsePrimary()
+        {
+            if (_pos >= _tokens.Count)
+                throw new Exception("Unexpected end of expression.");
+
+            var token = _tokens[_pos++];
+
+            return token.TokenType switch
+            {
+                TokenType.Number => new RuntimeValue(TokenType.Number,TokenOperation.None, double.Parse(token.Value.ToString()!)),
+                TokenType.StringLiteralExpression => new RuntimeValue(TokenType.StringLiteralExpression,TokenOperation.None, new InterpolatedStringEvaluator(_context.RuntimeExpressionEvaluator)
+                .Evaluate(token, _context)),
+                TokenType.Identifier => ResolveIdentifier(token),
+                TokenType.FunctionCall => EvaluateFunctionCall(token),
+                TokenType.Group => Evaluate(((List<Token>)token.Value!).ToList()),
+                _ => throw new Exception($"Unexpected token in expression: {token.TokenType}")
+            };
+        }
+
+        private RuntimeValue EvaluateFunctionCall(Token token)
+        {
+            if (token.Value is not FunctionTokenObject func)
+                throw new Exception("Malformed function call token");
+
+            var evaluatedArgs = func.FunctionArgments
+                .Select(arg => Evaluate(arg.Argment.ToList()))
+                .ToList();
+
+            var functionToken = _context.RuntimeEngine.Execute([token]);
+            return functionToken;
+        }
+
+        private RuntimeValue ResolveIdentifier(Token token)
+        {
+            string name = token.Value!.ToString()!;
+            if (!_context.RuntimeScopeFrame.Exists(name))
+                throw new Exception($"Undeclared identifier: {name}");
+
+            return _context.RuntimeScopeFrame.Get(name);
+        }
+
+        private RuntimeValue ApplyOperator(Token op, RuntimeValue left, RuntimeValue right)
+        {
+            if(left.Type is TokenType.StringLiteralExpression  || right.Type is TokenType.StringLiteralExpression)
+            {
+                return new RuntimeValue(TokenType.StringLiteralExpression,TokenOperation.None,left.Value.ToString() + right.Value.ToString());
+            }
+            double l = Convert.ToDouble(left.Value);
+            double r = Convert.ToDouble(right.Value);
+
+            return op.TokenOperation switch
+            {
+                TokenOperation.AddOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l + r),
+                TokenOperation.SubtractOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l - r),
+                TokenOperation.MultiplyOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l * r),
+                TokenOperation.DivideOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l / r),
+                TokenOperation.ModuloOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l % r),
+                TokenOperation.PowerOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, Math.Pow(l, r)),
+
+                TokenOperation.LessThanOrEqual => new RuntimeValue(TokenType.Number, TokenOperation.None, l <= r ? 1 : 0),
+                TokenOperation.EqualOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l == r ? 1 : 0),
+                TokenOperation.GreaterThanOrEqual => new RuntimeValue(TokenType.Number, TokenOperation.None, l >= r ? 1 : 0),
+                TokenOperation.GreaterThanOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l > r ? 1 : 0),
+                TokenOperation.LessThanOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l < r ? 1 : 0),
+                TokenOperation.Not => new RuntimeValue(TokenType.Number, TokenOperation.None, l != r ? 1 : 0),
+                TokenOperation.AndOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, ((l != 0) & (r != 0)) ? 1 : 0),
+                TokenOperation.OrOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, ((l != 0) | (r != 0)) ? 1 : 0),
+
+                _ => throw new Exception($"Invalid operator: {op.TokenOperation}")
+            };
+
+        }
+
+        private bool IsOperator(Token token, out int precedence)
+        {
+            precedence = token.TokenOperation switch
+            {
+                TokenOperation.OrOperation => 1,
+                TokenOperation.AndOperation => 2,
+
+                TokenOperation.EqualOperation or TokenOperation.Not or
+                TokenOperation.LessThanOperation or TokenOperation.GreaterThanOperation or
+                TokenOperation.LessThanOrEqual or TokenOperation.GreaterThanOrEqual => 3,
+
+                TokenOperation.AddOperation or TokenOperation.SubtractOperation => 4,
+                TokenOperation.MultiplyOperation or TokenOperation.DivideOperation or TokenOperation.ModuloOperation => 5,
+                TokenOperation.PowerOperation => 6,
+
+                _ => -1
+            };
+
+            return precedence > 0;
+        }
+
+    }
+}
+
+
+// ===== FILE: RuntimeContext.cs =====
+using MiniLang.Runtime.Execution;
+using MiniLang.Runtime.Executor;
+using MiniLang.Runtime.Expression;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.Runtime.StackObjects.StackFunctionFrame;
+using MiniLang.TokenObjects;
+
+namespace MiniLang.Runtime.RuntimeObjectStack
+{
+    public record class RuntimeContext
+    {
+        public RuntimeScopeFrame RuntimeScopeFrame { get; set; }
+        public RuntimeFunctionTable FunctionTable { get; set; }
+        public ReturnObject ReturnValueHolder { get; set; }
+        public ExecutableTokenDispatcher ExecutableTokenDispatcher { get; }
+        public RuntimeEngine RuntimeEngine { get; }
+        public RuntimeExpressionEvaluator RuntimeExpressionEvaluator { get; set; }
+        public RuntimeContext(ExecutableTokenDispatcher dispatcher)
+        {
+            RuntimeExpressionEvaluator = new(this);
+            ExecutableTokenDispatcher = dispatcher;
+            RuntimeEngine = new RuntimeEngine(dispatcher, this);
+            ReturnValueHolder = new ReturnObject(TokenType.ReturnType, TokenOperation.ReturnsNothing, null);
+        }
+
+        public void PushScope()
+        {
+            var child = new RuntimeScopeFrame { Parent = RuntimeScopeFrame };
+            RuntimeScopeFrame = child;
+        }
+
+        public void PopScope()
+        {
+            if (RuntimeScopeFrame.Parent == null)
+                throw new InvalidOperationException("Cannot pop the global scope.");
+            RuntimeScopeFrame = RuntimeScopeFrame.Parent;
+        }
+
+        public void PushFunctionTable()
+        {
+            var child = new RuntimeFunctionTable { Parent = FunctionTable };
+            FunctionTable = child;
+        }
+
+        public void PopFunctionTable()
+        {
+            if (FunctionTable.Parent == null)
+                throw new InvalidOperationException("Cannot pop the global function table.");
+            FunctionTable = FunctionTable.Parent;
+        }
+        public void ReturnedHandled()
+        {
+            ReturnValueHolder = null;
+        }
+        public void NewScope()
+        {
+            PushFunctionTable();
+            PushScope();
+        }
+        public void EndScope()
+        {
+            PopScope();
+            PopFunctionTable();
+            ReturnedHandled();
+        }
+        public void SetReturn(TokenType returnType, TokenOperation returnOperator, object? value)
+        {
+            ReturnValueHolder = new ReturnObject(returnType, returnOperator, value);
+        }
+
+    }
+
+    public record ReturnObject(TokenType returnType, TokenOperation returnOperator, object? value);
+}
+
+
+// ===== FILE: CondionSyntaxObject.cs =====
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.SyntaxObjects.Condition
+{
+
+}
+
+
+// ===== FILE: ConditionSyntaxObject.cs =====
+using MiniLang.TokenObjects;
+
+namespace MiniLang.SyntaxObjects.Condition
+{
+    public class ConditionSyntaxObject
+    {
+        public ConditionSyntaxObject(IEnumerable<Token> expression, int line, IEnumerable<Token> scope,bool haveElse,bool haveBody, ElseSyntaxObject @else)
+        {
+            Expression = expression;
+            Line = line;
+            Scope = scope;
+            HasElse = haveElse;
+            HasBody = haveBody;
+            Else = @else;
+        }
+
+        public IEnumerable<Token> Expression { get; }
+        public int Line { get; }
+        public IEnumerable<Token> Scope { get; }
+        public bool HasElse { get; }
+        public bool HasBody { get; }
+        public ElseSyntaxObject Else { get; }
+    }
+    public class ElseSyntaxObject
+    {
+        public ElseSyntaxObject(int line, IEnumerable<Token> scope)
+        {
+            Line = line;
+            Scope = scope;
+        }
+
+        public int Line { get; }
+        public IEnumerable<Token> Scope { get; }
+
+    }
+}
+
+
+// ===== FILE: FunctionDeclarationSyntaxObject.cs =====
+using MiniLang.Functions;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.SyntaxObjects.FunctionBuilder
+{
+    public class FunctionDeclarationSyntaxObject : FunctionTokenObject
+    {
+        public IEnumerable<Token> Body { get;  }
+        public TokenOperation ReturnType {  get; }
+        public FunctionDeclarationSyntaxObject(string functionName, int functionArgmentsCount, TokenOperation returnType, IEnumerable<FunctionArgments> functionArgments,
+           IEnumerable<Token> Body) :
+            base(functionName, functionArgmentsCount, functionArgments)
+        {
+
+            this.Body = Body;
+            ReturnType = returnType;
+        }
+    }
+}
+
+
+// ===== FILE: MakeSyntaxObject.cs =====
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.SyntaxObjects.Make
+{
+    public class MakeSyntaxObject
+    {
+        /// <summary>
+        /// The name of the variable being declared.
+        /// </summary>
+        public string Identifier { get; }
+
+        /// <summary>
+        /// The value or expression being assigned.
+        /// Could be a literal, another identifier, or a complex expression node.
+        /// </summary>
+        public object AssignedValue { get; }
+
+        /// <summary>
+        /// Optional: Source line number or debug info.
+        /// </summary>
+        public int? SourceLine { get; }
+
+        public MakeSyntaxObject(string identifier, object assignedValue, int? sourceLine = null)
+        {
+            Identifier = identifier;
+            AssignedValue = assignedValue;
+            SourceLine = sourceLine;
+        }
+        public string ToTreeString(string indent = "", bool isLast = true)
+        {
+            var builder = new System.Text.StringBuilder();
+            string currentPrefix = indent + (isLast ? "└── " : "├── ");
+            string childIndent = indent + (isLast ? "    " : "│   ");
+
+            builder.AppendLine($"{currentPrefix}[MakeStatement]");
+            builder.AppendLine($"{childIndent}├── [Identifier -> {Identifier}]");
+
+            if (AssignedValue is MakeSyntaxObject nestedMake)
+            {
+                builder.AppendLine($"{childIndent}└── [Assigned ->]");
+                builder.Append(nestedMake.ToTreeString(childIndent + "    ", true));
+            }
+            else if (AssignedValue is IEnumerable<Token> tokenList)
+            {
+                var tokens = tokenList.ToList();
+                for (int i = 0; i < tokens.Count; i++)
+                {
+                    var token = tokens[i];
+                    bool isLastToken = i == tokens.Count - 1;
+
+                    if (token.Value is IEnumerable<Token> innerTokens)
+                    {
+                        builder.AppendLine($"{childIndent}{(isLastToken ? "└──" : "├──")} [Group]");
+                        foreach (var t in innerTokens)
+                        {
+                            builder.AppendLine($"{childIndent}    └── [Token::{t.TokenType}<{t.TokenOperation}> -> {t.Value}]");
+                        }
+                    }
+                    else
+                    {
+                        builder.AppendLine($"{childIndent}{(isLastToken ? "└──" : "├──")} [Token::{token.TokenType}<{token.TokenOperation}> -> {token.Value}]");
+                    }
+                }
+            }
+            else
+            {
+                builder.AppendLine($"{childIndent}└── [AssignedValue -> {AssignedValue}]");
+            }
+
+            return builder.ToString();
+        }
+
+    }
+
+
+}
+
+
+// ===== FILE: .NETCoreApp,Version=v10.0.AssemblyAttributes.cs =====
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v10.0", FrameworkDisplayName = ".NET 10.0")]
+
+
+// ===== FILE: MiniLang.AssemblyInfo.cs =====
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     This code was generated by a tool.
+//     Runtime Version:4.0.30319.42000
+//
+//     Changes to this file may cause incorrect behavior and will be lost if
+//     the code is regenerated.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("MiniLang")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+30012ea1151041babe3691e7e4149099e06a9e6f")]
+[assembly: System.Reflection.AssemblyProductAttribute("MiniLang")]
+[assembly: System.Reflection.AssemblyTitleAttribute("MiniLang")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+
+// Generated by the MSBuild WriteCodeFragment class.
+
+
+
+// ===== FILE: MiniLang.GlobalUsings.g.cs =====
+// <auto-generated/>
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Threading;
+global using System.Threading.Tasks;
+
+
+// ===== FILE: ConditionExecuteable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.SyntaxObjects.Condition;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    /// <summary>
+    /// Represents an executable token that evaluates conditional expressions and executes associated code blocks.
+    /// </summary>
+    /// <remarks>This class is responsible for processing tokens that represent conditional logic, such as
+    /// "if" statements. It evaluates the condition expression and executes the corresponding code block if the
+    /// condition is met. If the condition evaluates to false and an "else" block is defined, the "else" block is
+    /// executed instead.</remarks>
+    public class ConditionExecuteable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.Conditions];
+
+        public TokenOperation[] InvokeOperation => [TokenOperation.If];
+
+        /// <summary>
+        /// Executes a conditional dispatch based on the evaluation of a condition expression.
+        /// </summary>
+        /// <remarks>This method evaluates the condition expression within the provided token. If the
+        /// expression evaluates to a non-zero numeric value,  the associated conditional scope is executed. If the
+        /// condition evaluates to zero and an "else" scope is defined, the "else" scope is executed.  The method
+        /// creates a new runtime scope for the execution of conditional or "else" scopes and ensures proper scope
+        /// management.</remarks>
+        /// <param name="Token">The token containing the condition syntax object to be evaluated.</param>
+        /// <param name="context">The runtime context used for evaluating expressions and executing scopes.</param>
+        /// <returns>The result of executing the conditional scope, or <see langword="null"/> if the condition evaluates to false
+        /// and no "else" scope is defined.</returns>
+        /// <exception cref="InvalidOperationException">Thrown if the token value is not a valid <c>ConditionSyntaxObject</c>, or if the condition expression does
+        /// not evaluate to a numeric value.</exception>
+        public RuntimeValue Dispatch(Token Token, RuntimeContext context)
+        {
+            if (Token.Value is not ConditionSyntaxObject cso)
+            {
+                throw new InvalidOperationException($"runtime exception: Token value is not a valid ConditionSyntaxObject: {Token.Value}");
+            }
+            var expression_result = context.RuntimeExpressionEvaluator.Evaluate(cso.Expression.ToList());
+            if (expression_result.Type is not TokenType.Number)
+            {
+                throw new InvalidOperationException($"runtime exception: Condition expression must evaluate to a number, but got: {expression_result.Type}");
+            }
+            if ( !Double.TryParse(expression_result.Value.ToString(),out double result))
+            {
+                throw new InvalidOperationException($"runtime exception: Condition expression must evaluate to a number, but got: {expression_result.Value}");
+            }
+            if (result != (double)0)
+            {
+                if (cso.HasBody)
+                {
+                    context.NewScope();
+                    var @return = context.RuntimeEngine.Execute(cso.Scope.ToList());
+                    context.EndScope();
+                    if (@return is not null)
+                    {
+                        context.SetReturn(TokenType.ReturnType, TokenOperation.ReturnsNothing, @return);
+                    }
+                    return @return;
+
+                }
+
+            }
+            else if(cso.Else?.Scope is not null  && cso.Else.Scope.Count()>0)
+            {
+                context.NewScope();
+                var @return = context.RuntimeEngine.Execute(cso.Else.Scope.ToList());
+                context.EndScope();
+                if (@return is not null)
+                {
+                    context.SetReturn(TokenType.ReturnType, TokenOperation.ReturnsNothing, @return);
+                }
+                return @return;
+            }
+            return null;
+        }
+
+    }
+}
+
+
+// ===== FILE: FunctionBuilderExecuteable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.Runtime.StackObjects.StackFunctionFrame;
+using MiniLang.SyntaxObjects.FunctionBuilder;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    /// <summary>
+    /// Represents an executable token for defining and registering functions within a runtime context.
+    /// </summary>
+    /// <remarks>This class is used to process tokens that represent function declarations and register them
+    /// in the runtime's function table. It ensures that the token is valid and contains the necessary information to
+    /// create a runtime function.</remarks>
+    public class FunctionBuilderExecuteable : IExecutableToken
+    {
+        public TokenType[] InvokeType =>[TokenType.NewFunction ];
+
+        public TokenOperation[] InvokeOperation => [TokenOperation.None];
+
+        public RuntimeValue Dispatch(Token token, RuntimeContext context)
+        {
+            if(token == null) throw new ArgumentNullException("execution error: fn token was null.");
+            if(token.Value is not FunctionDeclarationSyntaxObject fds)
+            {
+              throw new ArgumentNullException("execution error: fn token was not a FunctionDeclarationSyntaxObject.");
+            }
+            RuntimeFunction runtimeFunction = new RuntimeFunction(fds.FunctionName, fds.FunctionArgmentsCount, fds);
+            context.FunctionTable.Declare(runtimeFunction);
+            return null;
+        }
+    }
+}
+
+
+// ===== FILE: FunctionCallExecution.cs =====
+using MiniLang.Functions;
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    /// <summary>
+    /// Represents the execution logic for invoking a function call within the runtime context.
+    /// </summary>
+    /// <remarks>This class is responsible for resolving function definitions, evaluating arguments, and
+    /// executing the function body. It ensures that the function call adheres to the expected argument count and return
+    /// type.</remarks>
+    public class FunctionCallExecution : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.FunctionCall];
+
+        public TokenOperation[] InvokeOperation => [TokenOperation.None];
+        /// <summary>
+        /// Dispatches a function call based on the provided token and runtime context.
+        /// </summary>
+        /// <remarks>This method evaluates the arguments of the function, sets up the necessary runtime
+        /// scope and function table,  and executes the function body. It ensures that the function returns a value
+        /// consistent with its declared return type.</remarks>
+        /// <param name="Token">The token representing the function call, including its name and arguments.</param>
+        /// <param name="context">The runtime context used to resolve the function, evaluate arguments, and manage scope.</param>
+        /// <returns>The result of the function execution as a <see cref="RuntimeValue"/>.  If the function has no return value,
+        /// the method returns <c>null</c>.</returns>
+        /// <exception cref="InvalidOperationException">Thrown if the provided token does not contain a valid function body.</exception>
+        /// <exception cref="Exception">Thrown if the function returns a value inconsistent with its declared return type or if a function parameter
+        /// name is invalid.</exception>
+        public RuntimeValue Dispatch(Token Token, RuntimeContext context)
+        {
+            if (Token.Value is not FunctionTokenObject fc)
+            {
+                throw new InvalidOperationException("execution error: invalid token body for calling a function.");
+            }
+            var function = context.FunctionTable.Resolve(fc.FunctionName, fc.FunctionArgmentsCount);
+            RuntimeValue[] argments = new RuntimeValue[fc.FunctionArgmentsCount];
+            var argms = fc.FunctionArgments.ToArray();
+            //setting up the arg expressions
+            for (int i = 0; i < fc.FunctionArgmentsCount; i++)
+            {
+                argments[i] = context.RuntimeExpressionEvaluator.Evaluate(argms[i].Argment.ToList());
+            }
+            context.PushScope();
+            context.PushFunctionTable();
+            //creating the arg local values
+            var funcArgs = function.Declaration.FunctionArgments.ToArray();
+            for (int i = 0;i < fc.FunctionArgmentsCount; i++)
+            {
+                context.RuntimeScopeFrame.Declare(new RuntimeVariable(funcArgs[i].Argment.ToArray()[0].Value.ToString() ?? throw new Exception("invalid function parameter name."),
+                    TokenType.Identifier, argments[i]));
+            }
+            var @return = context.RuntimeEngine.Execute(function.Declaration.Body.ToList());
+            context.PopFunctionTable();
+            context.PopScope();
+            if(@return is null  && function.Declaration.ReturnType is not TokenOperation.ReturnsNothing)
+            {
+                throw new Exception($"{function.Name} function returned nothing instead of {function.Declaration.ReturnType}");
+            }
+            else if(@return is not null && !MatchReturnType(@return.Type ,@return.Operator, function.Declaration.ReturnType))
+            {
+                throw new Exception($"{function.Name} function returned {@return.Operator} instead of {function.Declaration.ReturnType}");
+            }
+            if(@return is not null)
+            {
+                context.SetReturn(@return?.Type ?? TokenType.ReturnType, @return?.Operator ?? TokenOperation.ReturnsNothing, @return?.Value);
+
+            }
+         
+            return @return;
+        }
+        public bool MatchReturnType(TokenType operation,TokenOperation @operator, TokenOperation expected)
+        {
+            return expected switch
+            {
+                TokenOperation.ReturnsNothing => operation == TokenType.ReturnType && @operator == TokenOperation.ReturnsNothing,
+                TokenOperation.ReturnsNumber => operation == TokenType.Number,
+                TokenOperation.ReturnsString => operation == TokenType.StringLiteralExpression,
+                TokenOperation.ReturnsObject => true,
+                _ => false
+            };
+        }
+    }
+}
+
+
+// ===== FILE: GiveExacuteable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.SyntaxObjects;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    public class GiveExacuteable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.Keyword];
+
+        public TokenOperation[] InvokeOperation => [TokenOperation.give];
+
+        /// <summary>
+        /// Evaluates the expression contained within the specified token and returns the resulting runtime value.
+        /// </summary>
+        /// <param name="Token">The token containing the expression to be evaluated. The <see cref="Token.Value"/> must be of type
+        /// <c>GiveSyntaxObject</c>.</param>
+        /// <param name="context">The runtime context used for evaluating the expression. Provides access to the runtime expression evaluator.</param>
+        /// <returns>The result of evaluating the expression contained in the token.</returns>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="Token"/> does not have a <see cref="Token.Value"/> of type
+        /// <c>GiveSyntaxObject</c>.</exception>
+        public RuntimeValue Dispatch(Token Token, RuntimeContext context)
+        {
+            if (Token.Value is not GiveSyntaxObject giveSyntaxObject)
+            {
+                throw new ArgumentException("runtime error : Token value must be of type GiveSyntaxObject", nameof(Token));
+            }
+            var returncontext = context.RuntimeExpressionEvaluator.Evaluate(giveSyntaxObject.expression.ToList());
+            context.SetReturn(returncontext.Type, returncontext.Operator, returncontext.Value);
+            return returncontext;
+        }
+    }
+}
+
+
+// ===== FILE: MakeExecutable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.SyntaxObjects.Make;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    public class MakeExecutable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.Keyword ];
+        public TokenOperation[] InvokeOperation => [ TokenOperation.make];
+
+        public RuntimeValue? Dispatch(Token token, RuntimeContext context)
+        {
+            if (token.Value is not MakeSyntaxObject makeSyntax)
+                throw new InvalidOperationException("Invalid 'make' token payload.");
+
+            List<Token> expressionTokens = makeSyntax.AssignedValue switch
+            {
+                IEnumerable<Token> list => list.ToList(),
+                Token single => new List<Token> { single },
+                _ => throw new InvalidOperationException("Assigned value must be a Token or List<Token>")
+            };
+
+            var evaluated = context.RuntimeExpressionEvaluator.Evaluate(expressionTokens);
+
+            // Infer the declared type based on value
+            TokenType inferredType = evaluated.Type;
+
+            var variable = new RuntimeVariable(makeSyntax.Identifier, inferredType, evaluated);
+            context.RuntimeScopeFrame.Declare(variable);
+
+            return null; // 'make' returns nothing
+        }
+    }
+}
+
+
+// ===== FILE: NumberLiteralExecutable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Singles
+{
+    /// <summary>
+    /// Represents an executable token that processes number literals.
+    /// </summary>
+    /// <remarks>This class is responsible for handling tokens that represent numeric values. It validates the
+    /// token's value and converts it into a runtime representation.</remarks>
+    public class NumberLiteralExecutable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.Number ];
+        public TokenOperation[] InvokeOperation => Array.Empty<TokenOperation>();
+
+        public RuntimeValue Dispatch(Token token, RuntimeContext context)
+        {
+            if (token.Value == null || !double.TryParse(token.Value.ToString(), out double result))
+                throw new Exception($"Invalid number literal: {token.Value}");
+
+            return new RuntimeValue(TokenType.Number, TokenOperation.None, result);
+        }
+    }
+
+}
+
+
+// ===== FILE: SayExecutable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.SyntaxObjects;
+using MiniLang.SyntaxObjects.Make;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    public class SayExecutable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.Function];
+
+        public TokenOperation[] InvokeOperation => [TokenOperation.SayKeyword];
+
+        public RuntimeValue Dispatch(Token yourToken, RuntimeContext context)
+        {
+            if(yourToken.Value is not SayFunctionSyntaxObject SayFunctionSyntaxObject)
+                throw new InvalidOperationException("Invalid 'Say keyword' token payload.");
+            var value = context.RuntimeExpressionEvaluator.Evaluate(SayFunctionSyntaxObject.Argments?.ToList() ?? []);
+            Console.WriteLine(value.Value);
+            return null;
+        }
+    }
+}
+
+
+// ===== FILE: ScopeExecutable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    public class ScopeExecutable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.Scope];
+
+        public TokenOperation[] InvokeOperation => [TokenOperation.None];
+
+        public RuntimeValue Dispatch(Token yourToken, RuntimeContext context)
+        {
+            if(yourToken.Value is not  IEnumerable<Token> tl)
+            {
+                throw new InvalidOperationException("trying to execute body with valid body tokens.");
+            }
+            context.PushScope();
+            context.PushFunctionTable();
+            var @excute =   context.RuntimeEngine.Execute(tl.ToList());
+            context.PopScope();
+            context.PopFunctionTable();
+            context.ReturnedHandled();
+            return @excute;
+
+        }
+    }
+}
+
+
+// ===== FILE: SetterExecutable.cs =====
+using MiniLang.GrammarsAnalyers;
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    public class SetterExecutable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.SETTERS];
+
+        public TokenOperation[] InvokeOperation => [   TokenOperation.SETTER,
+            TokenOperation.SETTERAddOperation,
+            TokenOperation.SETTERSubtractOperation];
+
+        public RuntimeValue Dispatch(Token token, RuntimeContext context)
+        {
+            if(token.Value is not SetterSyntaxObject setterSyntaxObject)
+            {
+                throw new ArgumentException("runtime error: Token value must be of type SetterSyntaxObject.", nameof(token));
+            }
+            if(!context.RuntimeScopeFrame.Exists(setterSyntaxObject.Identifier))
+            {
+                throw new Exception($"Variable '{setterSyntaxObject.Identifier}' not declared in the current scope.");
+            }
+            var value = context.RuntimeExpressionEvaluator.Evaluate(setterSyntaxObject.Expression.ToList());
+            var currentValue = context.RuntimeScopeFrame.Get(setterSyntaxObject.Identifier);
+            if (currentValue.Type != value.Type)
+            {
+                throw new Exception($"Type mismatch: Cannot add {value.Type} to {currentValue.Type}.");
+            }
+            context.RuntimeScopeFrame.Assign(setterSyntaxObject.Identifier, new RuntimeValue(currentValue.Type,currentValue.Operator, RenewValue(currentValue.Value, value.Value, setterSyntaxObject.SetterOperator)));
+            context.ReturnedHandled();//this tells the runtime that the return value has been handled
+            return null; // No return value for setter operations
+        }
+        private object RenewValue(object left, object right, SetterOperator setterOperator)
+        {
+            return setterOperator switch
+            {
+                SetterOperator.SETTER => right,
+                SetterOperator.SETTERAddOperation => (dynamic)left + (dynamic)right,
+                SetterOperator.SETTERSubtractOperation => (dynamic)left - (dynamic)right,
+                _ => throw new NotSupportedException($"runtime error : setter operator: {setterOperator}"),
+            };
+        }
+
+
+
+    }
+}
+
+
+// ===== FILE: StringLiteralExecutable.cs =====
+using MiniLang.Interfaces;
+using MiniLang.Runtime.Expression;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Singles
+{
+    public class StringInterpolatedExecutable : IExecutableToken
+    {
+        public TokenType[] InvokeType => new[] { TokenType.StringLiteralExpression };
+        public TokenOperation[] InvokeOperation => [TokenOperation.None];
+
+        
+        public RuntimeValue? Dispatch(Token token, RuntimeContext context)
+        {
+            var expression = new InterpolatedStringEvaluator(context.RuntimeExpressionEvaluator);
+            return new RuntimeValue(TokenType.StringLiteralExpression, TokenOperation.None, expression.Evaluate(token, context));
+        }
+    }
+
+}
+
+
+// ===== FILE: WhileExecuteable.cs =====
+using MiniLang.GrammarsAnalyers;
+using MiniLang.Interfaces;
+using MiniLang.Runtime.RuntimeObjectStack;
+using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.TokenObjects;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.RuntimeExecutors.Builtins
+{
+    public class WhileExecuteable : IExecutableToken
+    {
+        public TokenType[] InvokeType => [TokenType.Conditions];
+
+        public TokenOperation[] InvokeOperation => [TokenOperation.While];
+
+        public RuntimeValue Dispatch(Token token, RuntimeContext context)
+        {
+            if(token == null)
+                throw new Exception("runtime error: token is null in WhileExecuteable Dispatch method.");
+            if(token.Value is not WhileSyntaxObject whileSyntax)
+                throw new Exception($"runtime error: expected WhileSyntaxObject, got {token.Value.GetType().Name}.");
+            var value = context.RuntimeExpressionEvaluator.Evaluate(whileSyntax.Expression.ToList());
+            var body = whileSyntax.Scope.ToList();
+            context.ReturnedHandled();
+
+            while (value.Value is double d && d > 0 ||
+                   value.Value is int i && i > 0 ||
+                   value.Value is decimal dec && dec > 0)
+            {
+                if (!whileSyntax.hasBody)
+                    continue;
+                context.NewScope();
+                var result  = context.RuntimeEngine.Execute(body);
+                if(context.ReturnValueHolder != null)
+                {
+                    if(context.ReturnValueHolder.returnOperator == TokenOperation.ReturnsNothing)
+                    {
+                        context.ReturnedHandled();
+                        continue;
+                    }
+                    context.ReturnedHandled();
+                    return result;
+                }
+                context.EndScope();
+
+                value = context.RuntimeExpressionEvaluator.Evaluate(whileSyntax.Expression.ToList());
+            }
+            return null;
+        }
+    }
+}
+
+
+// ===== FILE: RuntimeScopeFrame.cs =====
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.StackObjects.StackFrame
+{
+    public class RuntimeScopeFrame
+    {
+        private readonly List<RuntimeVariable> _locals = new();
+
+        public RuntimeScopeFrame? Parent { get; set; }
+
+        public void Declare(RuntimeVariable variable)
+        {
+            if (_locals.Exists(x => x.Name == variable.Name))
+                throw new InvalidOperationException($"Variable '{variable.Name}' is already declared in this scope.");
+
+            _locals.Add(variable);
+        }
+        public bool Exists(string name)
+        {
+            return _locals.Any(x => x.Name == name) ||(Parent?.Exists(name) ??false);
+        }
+        public void Assign(string name, RuntimeValue value)
+        {
+            var target = Resolve(name);
+            if (target == null)
+                throw new Exception($"Variable '{name}' not declared.");
+
+            target.Value = value;
+        }
+
+        public RuntimeValue Get(string name)
+        {
+            var target = Resolve(name);
+            if (target == null)
+                throw new Exception($"Variable '{name}' not found.");
+
+            return target.Value!;
+        }
+
+        private RuntimeVariable? Resolve(string name)
+        {
+            var frame = this;
+            while (frame != null)
+            {
+                var match = frame._locals.FirstOrDefault(v => v.Name == name);
+                if (match != null)
+                    return match;
+
+                frame = frame.Parent;
+            }
+            return null;
+        }
+    }
+}
+
+
+// ===== FILE: RuntimeValue.cs =====
+using MiniLang.TokenObjects;
+
+namespace MiniLang.Runtime.StackObjects.StackFrame
+{
+    public class RuntimeValue
+    {
+        public TokenType Type { get; }
+        public TokenOperation Operator { get; }
+        public object Value { get; }
+
+        public RuntimeValue(TokenType type,TokenOperation tokenOperation, object value)
+        {
+            Type = type;
+            Value = value;
+            Operator = tokenOperation;
+        }
+
+
+        public override string ToString() => $"{Value} ({Type})";
+    }
+}
+
+
+// ===== FILE: RuntimeVariable.cs =====
+using MiniLang.TokenObjects;
+
+namespace MiniLang.Runtime.StackObjects.StackFrame
+{
+    public class RuntimeVariable
+    {
+        public string Name { get; }
+        public TokenType DeclaredType { get; }
+        public RuntimeValue? Value { get; set; }
+
+        public RuntimeVariable(string name, TokenType declaredType, RuntimeValue? value = null)
+        {
+            Name = name;
+            DeclaredType = declaredType;
+            Value = value;
+        }
+        public override string ToString()
+        {
+            return Value?.Value?.ToString()??"";
+        }
+    }
+}
+
+
+// ===== FILE: RuntimeFunction.cs =====
+using MiniLang.SyntaxObjects.FunctionBuilder;
+
+namespace MiniLang.Runtime.StackObjects.StackFunctionFrame
+{
+    public class RuntimeFunction
+    {
+        public string Name { get; }
+        public int ArgCount { get; }
+        public FunctionDeclarationSyntaxObject Declaration { get; }
+
+        public RuntimeFunction(string name, int argCount, FunctionDeclarationSyntaxObject declaration)
+        {
+            Name = name;
+            ArgCount = argCount;
+            Declaration = declaration;
+        }
+    }
+}
+
+
+// ===== FILE: RuntimeFunctionTable.cs =====
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace MiniLang.Runtime.StackObjects.StackFunctionFrame
+{
+    public class RuntimeFunctionTable
+    {
+        private readonly List<RuntimeFunction> _functions = new();
+        public RuntimeFunctionTable? Parent { get; set; }
+
+        public void Declare(RuntimeFunction function)
+        {
+            if (_functions.Any(f => f.Name == function.Name && f.ArgCount == function.ArgCount))
+                throw new InvalidOperationException($"Function '{function.Name}' with {function.ArgCount} args already declared.");
+
+            _functions.Add(function);
+        }
+
+        public RuntimeFunction Resolve(string name, int argCount)
+        {
+            var current = this;
+            while (current != null)
+            {
+                var match = current._functions.FirstOrDefault(f => f.Name == name && f.ArgCount == argCount);
+                if (match != null)
+                    return match;
+
+                current = current.Parent;
+            }
+
+            throw new InvalidOperationException($"Function '{name}' with {argCount} args not found.");
+        }
+    }
+}
+
+
+// ===== FILE: .NETCoreApp,Version=v10.0.AssemblyAttributes.cs =====
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v10.0", FrameworkDisplayName = ".NET 10.0")]
+
+
+// ===== FILE: MiniLangGuide.AssemblyInfo.cs =====
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     This code was generated by a tool.
+//     Runtime Version:4.0.30319.42000
+//
+//     Changes to this file may cause incorrect behavior and will be lost if
+//     the code is regenerated.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("MiniLangGuide")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+29f562058e57cfcd58e261f3a89e91f85f3c8234")]
+[assembly: System.Reflection.AssemblyProductAttribute("MiniLangGuide")]
+[assembly: System.Reflection.AssemblyTitleAttribute("MiniLangGuide")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+
+// Generated by the MSBuild WriteCodeFragment class.
+
+
+
+// ===== FILE: MiniLangGuide.GlobalUsings.g.cs =====
+// <auto-generated/>
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Threading;
+global using System.Threading.Tasks;
+
+
+// ===== FILE: .NETCoreApp,Version=v10.0.AssemblyAttributes.cs =====
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v10.0", FrameworkDisplayName = ".NET 10.0")]
+
+
+// ===== FILE: MiniLangCLI.AssemblyInfo.cs =====
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     This code was generated by a tool.
+//     Runtime Version:4.0.30319.42000
+//
+//     Changes to this file may cause incorrect behavior and will be lost if
+//     the code is regenerated.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("MiniLangCLI")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+30012ea1151041babe3691e7e4149099e06a9e6f")]
+[assembly: System.Reflection.AssemblyProductAttribute("MiniLangCLI")]
+[assembly: System.Reflection.AssemblyTitleAttribute("MiniLangCLI")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+
+// Generated by the MSBuild WriteCodeFragment class.
+
+
+
+// ===== FILE: MiniLangCLI.GlobalUsings.g.cs =====
+// <auto-generated/>
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Threading;
+global using System.Threading.Tasks;
+
+
+// ===== FILE: MiniLangTest.AssemblyInfo.cs =====
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     This code was generated by a tool.
+//     Runtime Version:4.0.30319.42000
+//
+//     Changes to this file may cause incorrect behavior and will be lost if
+//     the code is regenerated.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("MiniLangTest")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+29f562058e57cfcd58e261f3a89e91f85f3c8234")]
+[assembly: System.Reflection.AssemblyProductAttribute("MiniLangTest")]
+[assembly: System.Reflection.AssemblyTitleAttribute("MiniLangTest")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+
+// Generated by the MSBuild WriteCodeFragment class.
+
+
+
+// ===== FILE: MiniLangTest.GlobalUsings.g.cs =====
+// <auto-generated/>
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Threading;
+global using System.Threading.Tasks;
+
+

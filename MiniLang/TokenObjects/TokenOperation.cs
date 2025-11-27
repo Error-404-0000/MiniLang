@@ -93,5 +93,13 @@
         ReturnsObject,
         #endregion
 
+
+        #region FieldAccess
+        [ValueContainer(false, "public")]
+        Public,
+        [ValueContainer(false, "private")]
+        Private,
+        #endregion
+
     }
 }

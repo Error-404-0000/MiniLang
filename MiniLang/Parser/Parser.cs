@@ -5,6 +5,7 @@ using MiniLang.TokenObjects;
 using System;
 using System.Data.Common;
 using System.Linq;
+using System.Text;
 namespace MiniLang.Parser;
 
 public static partial class Parser
@@ -98,7 +99,55 @@ public static partial class Parser
         }
 
 
-        return _group_token_object(tokens);
+        return _group_token_object(JoinDotsPath(tokens));
+    }
+
+    public static List<Token> JoinDotsPath(List<Token> tokens)
+    {
+        List<Token> newToken = new List<Token>();
+        bool isCurrentlyInDot = false;
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            if (i + 1 < tokens.Count)
+            {
+                if (tokens[i + 1].TokenType is TokenType.Dot)
+                {
+                    builder.Append(tokens[i].Value + ".");
+                    isCurrentlyInDot = true;
+                    i++;
+                }
+                else if (isCurrentlyInDot && tokens[i].TokenType is not TokenType.Dot)
+                {
+                    builder.Append(tokens[i].Value);
+                    newToken.Add(new Token(TokenType.Identifier, TokenOperation.None, TokenTree.Single, builder.ToString()));
+                    builder.Length = 0;
+                    isCurrentlyInDot = false;
+                }
+                else
+                {
+                    newToken.Add(tokens[i]);
+                    builder.Length = 0;
+                    isCurrentlyInDot = false;
+                }
+            }
+            else if (isCurrentlyInDot && tokens[i].TokenType is not TokenType.Dot)
+            {
+                builder.Append(tokens[i].Value);
+                newToken.Add(new Token(TokenType.Identifier, TokenOperation.None, TokenTree.Single, builder.ToString()));
+                builder.Length = 0;
+                isCurrentlyInDot = false;
+            }
+            else
+            {
+                newToken.Add(tokens[i]);
+                builder.Length = 0;
+                isCurrentlyInDot = false;
+            }
+
+        }
+        return newToken;
+        
     }
     private static List<Token> _group_token_object(List<Token> tokens)
     {

@@ -8,6 +8,19 @@ use "math.mini.py";
 @
 @
 
+
+fn object do(){
+  make i  = 200;
+  return(200);
+}
+print("This is a test of the MiniLangSpaces console.");
+do();
+
+make eee = 2;
+while(eee!=2000*233+2000){
+    eee+=1;
+    print(eee);
+}
 @@ --- Variables and Operations ---
 make  a = 10;
 make  b = 5;

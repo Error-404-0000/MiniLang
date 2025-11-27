@@ -47,34 +47,29 @@ namespace MiniLang.GrammarsAnalyers
             if (tokens.Length < 4)
             {
                 errorMessage = "Incomplete 'make' statement.";
-                return false;
+                return true;
             }
 
-            if (tokens[0].TokenType != TokenType.Keyword || (tokens[0].Value != "make" && tokens[0].Value != "var"))
+            if (tokens[0].TokenType != TokenType.Keyword && (tokens[0].Value != "make" || tokens[0].Value != "var"))
             {
-                errorMessage = "Statement must begin with 'make' or 'var'.";
-                return false;
+                errorMessage = "Make statement must begin with 'make' or 'var'.";
+                return true;
             }
 
             if (tokens[1].TokenType != TokenType.Identifier)
             {
-                errorMessage = "Expected variable name after 'make'.";
-                return false;
+                errorMessage = $"Expected variable name after 'make' but got token type '{tokens[1].TokenType}'.";
+                return true;
             }
 
             if (tokens[2].TokenType != TokenType.SETTERS)
             {
-                errorMessage = "Expected '=' after variable name.";
-                return false;
+                errorMessage = $"Expected '=' after variable name  but got '{tokens[2].TokenType}.";
+                return true;
             }
 
-            if (tokens[^1].TokenType != TokenType.Semicolon)
-            {
-                errorMessage = "Expected ';' at end of statement.";
-                return false;
-            }
 
-            return true;
+            return false;
         }
 
         public Token BuildNode(Token[] tokens,ScopeObjectValueManager objectValueManager,
@@ -91,11 +86,33 @@ namespace MiniLang.GrammarsAnalyers
                 Identifier=identifier,
                 IsAssigned = tokens.Length<3? true:false,//make obj; means value is not set and make obj =...;
             });
-            if (tokens.Length>3&&!expressionGrammar.IsValidExpression(tokens[3..(tokens.Length)],out string errorMessage))
+            var expression = tokens[3..(tokens.Length)];
+            var IsStruct = false;
+            var structNameIfWasStruct = default(string);
+            if (tokens.Length>3)
             {
-                throw new Exception(errorMessage);
+                if (tokens[3].TokenType is TokenType.New)
+                {
+                    expression = tokens[4..(tokens.Length)];
+                    if (tokens.Count() is < 3 or > 5)
+                    {
+                        throw new Exception("Invalid struct name");
+                    }
+                    else if (tokens[4].TokenType is not TokenType.Identifier)
+                    {
+                        throw new Exception($"Invalid struct name '{tokens[4].Value}'");
+
+                    }
+                    structNameIfWasStruct = tokens[4].Value.ToString();
+
+                    IsStruct = true;
+                }
+                else if(!expressionGrammar.IsValidExpression(expression, out string errorMessage))
+                {
+                    throw new Exception((IsStruct?"when creating struct: ":null)+ errorMessage);
+                }
             }
-            var makeObject = new MakeSyntaxObject(identifier, tokens[3..tokens.Length], line);
+            var makeObject = new MakeSyntaxObject(identifier, tokens[3..tokens.Length], line,IsStruct, structNameIfWasStruct);
             return new Token(TokenType.Keyword, TokenOperation.make, TokenTree.Single, makeObject);
         }
 

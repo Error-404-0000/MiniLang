@@ -7,12 +7,13 @@ namespace MiniLang.Runtime.StackObjects.StackFrame
         public string Name { get; }
         public TokenType DeclaredType { get; }
         public RuntimeValue? Value { get; set; }
-
-        public RuntimeVariable(string name, TokenType declaredType, RuntimeValue? value = null)
+        public bool IsStruct { get; }
+        public RuntimeVariable(string name, TokenType declaredType, RuntimeValue? value = null, bool isStruct = false)
         {
             Name = name;
             DeclaredType = declaredType;
             Value = value;
+            IsStruct = isStruct;
         }
         public override string ToString()
         {

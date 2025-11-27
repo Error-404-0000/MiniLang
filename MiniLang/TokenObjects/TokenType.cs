@@ -1,19 +1,20 @@
 ﻿using MiniLang.Attributes;
 
 namespace MiniLang.TokenObjects;
+
 public enum TokenType
 {
     None,
     Group,
-    [ValueContainer(true, "=","-=","+=")]
+    [ValueContainer(true, "=", "-=", "+=")]
     SETTERS,
-    
+
     [ValueContainer(true, "say", "show", "typeof")]
     Function,
     FunctionCall,
     Number,
     Scope,
-    [ValueContainer(true, "+", "-", "*", "/", "%", "^","<=","==",">=",">","<","!=")]
+    [ValueContainer(true, "+", "-", "*", "/", "%", "^", "<=", "==", ">=", ">", "<", "!=")]
     Operation,
 
     [ValueContainer(false, "(")]
@@ -21,7 +22,7 @@ public enum TokenType
     [ValueContainer(false, ")")]
     ParenthesisClose,
 
-    [ValueContainer(true, "if", "else","while")]
+    [ValueContainer(true, "if", "else", "while")]
     Conditions,
 
 
@@ -35,13 +36,14 @@ public enum TokenType
     CurlybracketEnds,
     [ValueContainer(false, ":")]
     Then,
+    [ValueContainer(false, "->")]
+    Director,
     [ValueContainer(false, "done")]
     Done,
-    [ValueContainer(false,";")]
+    [ValueContainer(false, ";")]
     Semicolon,
     [ValueContainer(false, ".")]
     Dot,
-
     StringLiteralExpression,
     [ValueContainer(false, ",")]
     Comma,
@@ -51,9 +53,19 @@ public enum TokenType
     [ValueContainer(false, "give")]
     Return,
 
-    [ValueContainer(false,"fn")]
+    [ValueContainer(false, "fn")]
     NewFunction,
-    [ValueContainer(true,"number", "string","object","nothing")]
-    ReturnType
+    [ValueContainer(true, "number", "string", "object", "nothing")]
+    ReturnType,
+    #region struct
+    [ValueContainer(false, "new")]
+    New,
+    [ValueContainer(false, "struct")]
+    Struct,
+    [ValueContainer(true, "private", "public")]
+    @FieldAccess,
+    #endregion
+
+    Object
 
 }

@@ -22,12 +22,16 @@ namespace MiniLang.SyntaxObjects.Make
         /// Optional: Source line number or debug info.
         /// </summary>
         public int? SourceLine { get; }
+        public bool IsStruct { get; }
+        public string IfStructWhatName { get; }
 
-        public MakeSyntaxObject(string identifier, object assignedValue, int? sourceLine = null)
+        public MakeSyntaxObject(string identifier, object assignedValue, int? sourceLine = null, bool isStruct = false, string ifStructWhatName = null)
         {
             Identifier = identifier;
             AssignedValue = assignedValue;
             SourceLine = sourceLine;
+            IsStruct = isStruct;
+            IfStructWhatName = ifStructWhatName;
         }
         public string ToTreeString(string indent = "", bool isLast = true)
         {

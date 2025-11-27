@@ -1,6 +1,7 @@
 ﻿using MiniLang.Runtime.Execution;
 using MiniLang.Runtime.Executor;
 using MiniLang.Runtime.Expression;
+using MiniLang.Runtime.StackObjects;
 using MiniLang.Runtime.StackObjects.StackFrame;
 using MiniLang.Runtime.StackObjects.StackFunctionFrame;
 using MiniLang.TokenObjects;
@@ -10,6 +11,7 @@ namespace MiniLang.Runtime.RuntimeObjectStack
     public record class RuntimeContext
     {
         public RuntimeScopeFrame RuntimeScopeFrame { get; set; }
+        public RuntimeStructScopeFrame StructFrame { get; set; }
         public RuntimeFunctionTable FunctionTable { get; set; }
         public ReturnObject ReturnValueHolder { get; set; }
         public ExecutableTokenDispatcher ExecutableTokenDispatcher { get; }
@@ -48,6 +50,18 @@ namespace MiniLang.Runtime.RuntimeObjectStack
                 throw new InvalidOperationException("Cannot pop the global function table.");
             FunctionTable = FunctionTable.Parent;
         }
+        public void PushStructTable()
+        {
+            var child = new RuntimeStructScopeFrame { Parent = StructFrame };
+            StructFrame = child;
+        }
+
+        public void PopStructTable()
+        {
+            if (StructFrame?.Parent == null)
+                throw new InvalidOperationException("Cannot pop the global struct table.");
+            StructFrame = StructFrame.Parent;
+        }
         public void ReturnedHandled()
         {
             ReturnValueHolder = null;
@@ -56,11 +70,13 @@ namespace MiniLang.Runtime.RuntimeObjectStack
         {
             PushFunctionTable();
             PushScope();
+            PushStructTable();
         }
         public void EndScope()
         {
             PopScope();
             PopFunctionTable();
+            PopStructTable();
             ReturnedHandled();
         }
         public void SetReturn(TokenType returnType, TokenOperation returnOperator, object? value)

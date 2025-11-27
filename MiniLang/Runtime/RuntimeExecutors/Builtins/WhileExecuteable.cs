@@ -35,6 +35,11 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
                 var result  = context.RuntimeEngine.Execute(body);
                 if(context.ReturnValueHolder != null)
                 {
+                    if(context.ReturnValueHolder.returnOperator == TokenOperation.ReturnsNothing)
+                    {
+                        context.ReturnedHandled();
+                        continue;
+                    }
                     context.ReturnedHandled();
                     return result;
                 }

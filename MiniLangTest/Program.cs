@@ -1,4 +1,6 @@
-﻿using MiniLang.Debugger;
+﻿
+#define DebugMode1
+using MiniLang.Debugger;
 using MiniLang.GrammarsAnalyers;
 using MiniLang.Interfaces;
 using MiniLang.GrammarInterpreter;
@@ -11,13 +13,15 @@ using MiniLang.Runtime.Executor;
 using MiniLang.Runtime.RuntimeExecutors.Singles;
 using MiniLang.Runtime.RuntimeObjectStack;
 using MiniLang.Runtime.RuntimeExecutors.Builtins;
+using MiniLang.GrammarsAnalyers.StructDeclaration;
+using MiniLang.Runtime.RuntimeExecutors.Builtins.Struct;
 
 class MiniLangRuntime
 {
     public static void Main(string[] args)
     {
         args = [null];
-        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLangSpaces\Main.mini";
+        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLang_Syntax_Guide\ClassCreation.mini";
         if (args.Length == 0)
         {
             Console.WriteLine("Usage: MiniLangRuntime <script-file>");
@@ -43,25 +47,34 @@ class MiniLangRuntime
         }
     }
 
+  
     public static void RunScript(string code)
     {
-        // Tokenize
         var tokens = Tokenizer.Tokenize(code);
 
-        // Parse
         var parsedTokens = Parser.Parse(tokens);
 
-        // Build grammar validators
+#if DebugMode
+        foreach (var token in parsedTokens)
+        {
+            token.Print();
+        }
+#endif
+
+
+#if !DebugMode
+
         var grammarValidator = new GrammarValidator([
             new MakeGrammar(), new ConditionGrammar(), new SayGrammar(), new TypeofGrammar(), new UseGrammar(),
             new SetterGrammar(), new FunctionDeclarationGrammar(), new FunctionCallsGrammar(),
-            new StandaloneExpressionGrammar(), new ScopeGrammar(), new GiveGrammar(), new WhileGrammar()
+            new StandaloneExpressionGrammar(), new ScopeGrammar(), new GiveGrammar(), new WhileGrammar(),
+            new StructGrammer(), new FieldDeclarationGrammer()
         ]);
-
-        // Interpret Grammar <- this does not execute the actual code, it builds an AST-like structure and validates  by building a dummy scope trees
+        // Interpret Grammar
         var grammarInterpreter = new GrammarInterpreter(grammarValidator, parsedTokens);
         var interpreted = grammarInterpreter.Interpret();
         interpreted = grammarInterpreter.InjectUse(interpreted);
+       
 
         // Dispatcher setup
         var dispatcher = new ExecutableTokenDispatcher([
@@ -75,15 +88,15 @@ class MiniLangRuntime
             new GiveExacuteable(),
             new ConditionExecuteable(),
             new WhileExecuteable(),
-            new SetterExecutable()
+            new SetterExecutable(),
+            new StructExecteable(),
         ]);
 
         //  Context
         var context = new RuntimeContext(dispatcher);
         context.PushScope();
         context.PushFunctionTable();
-
-        // 7. Load default variables
+        context.PushStructTable();
         context.RuntimeScopeFrame.Declare(new MiniLang.Runtime.StackObjects.StackFrame.RuntimeVariable(
             "true", TokenType.Number, new MiniLang.Runtime.StackObjects.StackFrame.RuntimeValue(TokenType.Number, TokenOperation.None, 1)
         ));
@@ -92,8 +105,8 @@ class MiniLangRuntime
             "false", TokenType.Number, new MiniLang.Runtime.StackObjects.StackFrame.RuntimeValue(TokenType.Number, TokenOperation.None, 0)
         ));
 
-        // 8. Execute
         var runtime = new RuntimeEngine(dispatcher, context);
         runtime.Execute(interpreted.ToList());
+#endif
     }
 }

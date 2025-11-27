@@ -26,10 +26,21 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
                 _ => throw new InvalidOperationException("Assigned value must be a Token or List<Token>")
             };
 
-            var evaluated = context.RuntimeExpressionEvaluator.Evaluate(expressionTokens);
+            RuntimeValue evaluated = null;
 
             // Infer the declared type based on value
-            TokenType inferredType = evaluated.Type;
+            TokenType inferredType = TokenType.None;
+            if (makeSyntax.IsStruct)
+            {
+                var buildStruct = context.StructFrame.CreateNewStruct(makeSyntax.IfStructWhatName);
+                evaluated = new RuntimeValue(TokenType.Struct,TokenOperation.None,buildStruct);
+            }
+            else {
+                evaluated = context.RuntimeExpressionEvaluator.Evaluate(expressionTokens);
+
+            }
+            inferredType = evaluated.Type;
+
 
             var variable = new RuntimeVariable(makeSyntax.Identifier, inferredType, evaluated);
             context.RuntimeScopeFrame.Declare(variable);

@@ -66,10 +66,10 @@ namespace MiniLang.GrammarsAnalyers
             if (tokens[0].Value is FunctionTokenObject func1)
             foreach (var parm in func1.FunctionArgments)
             {
-                    if(!expressionGrammarAnalyser.IsValidExpression(parm.Argment.ToArray(), out string error))
-                    {
-                        throw new Exception(error);
-                    }
+                    //if(!expressionGrammarAnalyser.IsValidExpression(parm.Argment.ToArray(), out string error))
+                    //{
+                    //    throw new Exception(error);
+                    //}
             }
             return tokens[0];//it's is already a FunctionTokenObject
         }
