@@ -2,11 +2,11 @@
 
 namespace MiniLang.Runtime.StackObjects.StackFunctionFrame
 {
-    public class RuntimeFunction
+    public record class RuntimeFunction
     {
-        public string Name { get; }
-        public int ArgCount { get; }
-        public FunctionDeclarationSyntaxObject Declaration { get; }
+        public string Name { get; set; }
+        public int ArgCount { get;  }
+        public FunctionDeclarationSyntaxObject Declaration { get; set; }
 
         public RuntimeFunction(string name, int argCount, FunctionDeclarationSyntaxObject declaration)
         {

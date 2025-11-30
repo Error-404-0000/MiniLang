@@ -44,7 +44,7 @@ namespace MiniLang.GrammarsAnalyers
 
         public TokenType[] TriggerTokenTypes => throw new NotImplementedException();
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             errorMessage = string.Empty;
 

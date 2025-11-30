@@ -17,7 +17,7 @@ namespace MiniLang.Interfaces
         /// <summary>
         /// Performs syntax validation on a segment of tokens.
         /// </summary>
-       public bool Analyse(Token[] tokens, out string errorMessage);
+       public bool Analyze(Token[] tokens, out string errorMessage);
 
         /// <summary>
         /// Specifies which keyword(s) or token this analyser is responsible for.

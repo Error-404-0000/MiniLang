@@ -45,7 +45,7 @@ namespace MiniLang.Runtime.Expression
 
                     // Tokenize and parse expression
                     var tokens = MiniLang.Tokenilzer.Tokenizer.Tokenize(expr);
-                    var parsedTokens = MiniLang.Parser.Parser.Parse(tokens); 
+                    var parsedTokens = MiniLang.Parser.Parser.Parse(tokens); //TODO : allow tokens to be transform into complete types
 
                     var value = _evaluator.Evaluate(parsedTokens);
                     result.Append(value.Value?.ToString());
@@ -59,5 +59,7 @@ namespace MiniLang.Runtime.Expression
 
             return result.ToString();
         }
+
+
     }
 }

@@ -101,5 +101,10 @@
         Private,
         #endregion
 
+        #region Talks to c# directly
+        [ValueContainer(false, "cscall")]
+        Cscall,
+        #endregion
+
     }
 }

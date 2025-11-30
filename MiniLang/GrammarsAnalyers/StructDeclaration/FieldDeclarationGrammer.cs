@@ -1,4 +1,5 @@
 ﻿using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Functions;
 using MiniLang.GrammarInterpreter.GrammarDummyScopes;
 using MiniLang.GrammarInterpreter.GrammarValidation;
 using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
@@ -24,7 +25,7 @@ namespace MiniLang.GrammarsAnalyers.StructDeclaration
 
         public int CacheCode { get; set; }
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             errorMessage = null;
             if (tokens.Length is > 4)
@@ -56,21 +57,38 @@ namespace MiniLang.GrammarsAnalyers.StructDeclaration
             return false;
         }
 
-        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
+            FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
         {
             if (tokens[3].TokenType is TokenType.Identifier)
             {
                 if (!expressionGrammarAnalyser.IsValidExpression(tokens[3..], out string message))
                     throw new Exception(message);
             }
-            return new Token(TokenType.None, TokenOperation.None, TokenTree.Single, new FieldItem(
+            //building the field item
+            var field = new FieldItem(
                  fieldName: tokens[1].Value.ToString() ?? throw new Exception($"field missing name at line {Line}. "),
                     fieldType: ReturnTypeToNormalType(tokens[3].TokenOperation,
                     () => tokens[3].TokenType is not TokenType.Identifier ? throw new Exception($"Invalid field type was given '{tokens[3].TokenOperation}'.") :
                     tokens[3].TokenType)
-                    , value: default(object?)!, IsStruct: tokens[3].TokenType is  TokenType.Identifier,
+                    ,value: default(object?)!, IsStruct: tokens[3].TokenType is TokenType.Identifier,
                     tokens[3].Value.ToString()!
-                ));
+                );
+
+
+            var field_token = new Token(TokenType.None, TokenOperation.None, TokenTree.Single, field);
+            scopeObjectValueManager.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
+            {
+                Identifier = field.FieldName,
+                IsAssigned = false,
+                TokenType = TokenType.Object
+            });
+            if (field.IsStruct)
+            {
+                FunctionDeclarationManager.Add(new FunctionCallTokenObject(functionName: field.FieldName, functionArgmentsCount: 0, functionArgments: []));
+            }
+
+            return field_token;
         }
 
         private TokenType ReturnTypeToNormalType(TokenOperation operation, Func<TokenType> FallBack) =>

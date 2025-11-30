@@ -10,6 +10,7 @@ namespace MiniLang.SyntaxObjects.Structure
         public required StructFieldHandler StructHandler {  get; set; }
         public string StructName { get; set; }
 
+
     }
     
 }

@@ -38,7 +38,7 @@ namespace MiniLang.GrammarsAnalyers
 
         public int CacheCode { get ; set ; }
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             if(tokens == null || tokens.Length == 0)
             {
@@ -47,7 +47,7 @@ namespace MiniLang.GrammarsAnalyers
             }
             if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall)
             {
-                errorMessage = "Syntax error: incorrect function call syntax.";
+                errorMessage = $"Syntax error: incorrect function call syntax. {string.Join(" ", tokens.Select(x=>x.Value))}";
                 return true;
             }
             errorMessage = null;
@@ -57,20 +57,20 @@ namespace MiniLang.GrammarsAnalyers
 
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
         {
-            if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall || tokens[0].Value is  FunctionTokenObject func&&
+            if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall || tokens[0].Value is  FunctionCallTokenObject func&&
                 FunctionDeclarationManager.Get(func.FunctionName,func.FunctionArgmentsCount) is  null)
             {
 
                 throw new Exception("Syntax error: incorrect function call syntax.");
             }
-            if (tokens[0].Value is FunctionTokenObject func1)
-            foreach (var parm in func1.FunctionArgments)
-            {
-                    //if(!expressionGrammarAnalyser.IsValidExpression(parm.Argment.ToArray(), out string error))
-                    //{
-                    //    throw new Exception(error);
-                    //}
-            }
+            //if (tokens[0].Value is FunctionTokenObject func1)
+            ////foreach (var parm in func1.FunctionArgments)
+            ////{
+            ////        //if(!expressionGrammarAnalyser.IsValidExpression(parm.Argment.ToArray(), out string error))
+            ////        //{
+            ////        //    throw new Exception(error);
+            ////        //}
+            ////}
             return tokens[0];//it's is already a FunctionTokenObject
         }
     }

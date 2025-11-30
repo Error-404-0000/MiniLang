@@ -6,13 +6,13 @@ using System.Text;
 
 namespace MiniLang.SyntaxObjects.FunctionBuilder
 {
-    public class FunctionDeclarationSyntaxObject : FunctionTokenObject
+    public record class FunctionDeclarationSyntaxObject : FunctionCallTokenObject
     {
         public IEnumerable<Token> Body { get;  }
         public TokenOperation ReturnType {  get; }
         public FunctionDeclarationSyntaxObject(string functionName, int functionArgmentsCount, TokenOperation returnType, IEnumerable<FunctionArgments> functionArgments,
-           IEnumerable<Token> Body) :
-            base(functionName, functionArgmentsCount, functionArgments)
+           IEnumerable<Token> Body, OnFunctionOpen? onFunctionOpen = null,OnFunctionClose? onFunctionClose = null) :
+            base(functionName, functionArgmentsCount, functionArgments, onFunctionOpen, onFunctionClose)
         {
 
             this.Body = Body;

@@ -11,7 +11,7 @@ namespace MiniLang.GrammarInterpreter.GrammarValidation
 {
     public class ExpressionGrammarAnalyser
     {
-        private readonly ScopeObjectValueManager _scope;
+        private  ScopeObjectValueManager _scope;
         private readonly FunctionDeclarationScopeManager _functionManager;
 
         public ExpressionGrammarAnalyser(ScopeObjectValueManager scope, FunctionDeclarationScopeManager functionManager)
@@ -19,7 +19,15 @@ namespace MiniLang.GrammarInterpreter.GrammarValidation
             _scope = scope;
             _functionManager = functionManager;
         }
-
+        public ExpressionGrammarAnalyser(ref ScopeObjectValueManager scope, FunctionDeclarationScopeManager functionManager)
+        {
+            _scope = scope;
+            _functionManager = functionManager;
+        }
+        public void UpdateScope(ScopeObjectValueManager scope)
+        {
+            _scope = scope;
+        }
         public bool IsValidExpression(Token[] tokens, out string errorMessage)
         {
             errorMessage = null;
@@ -48,6 +56,13 @@ namespace MiniLang.GrammarInterpreter.GrammarValidation
         private bool ParseExpression(Token[] tokens, ref int i, out string error)
         {
             error = null;
+
+            if (tokens[0].TokenType is TokenType.CSharp)
+            {
+                i = tokens.Length;
+                return true;//can't verify csharp calls
+
+            }
 
             if (!ParseOperand(tokens, ref i, out error))
                 return false;
@@ -96,12 +111,13 @@ namespace MiniLang.GrammarInterpreter.GrammarValidation
                 case TokenType.Number:
                 case TokenType.StringLiteralExpression:
                 case TokenType.ReturnType:
+                case TokenType.CSharp:
                     i++;
                     return true;
 
                 case TokenType.Identifier:
                     string name = token.Value?.ToString() ?? "";
-                    if (!_scope.Exists(name))
+                    if (!_scope.Exists(name)  )
                     {
                         error = $"Undeclared identifier: '{name}'.";
                         return false;
@@ -110,9 +126,9 @@ namespace MiniLang.GrammarInterpreter.GrammarValidation
                     return true;
 
                 case TokenType.FunctionCall:
-                    if (token.Value is FunctionTokenObject f)
+                    if (token.Value is FunctionCallTokenObject f)
                     {
-                        if (_functionManager == null || !_functionManager.Exists(f.FunctionName, f.FunctionArgmentsCount))
+                        if (_functionManager == null || !f.FunctionName.Contains('.')&&!_functionManager.Exists(f.FunctionName, f.FunctionArgmentsCount))
                         {
                             error = $"Undeclared function: '{f.FunctionName}' with {f.FunctionArgmentsCount} arguments.";
                             return false;

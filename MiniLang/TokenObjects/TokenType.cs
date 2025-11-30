@@ -5,9 +5,13 @@ namespace MiniLang.TokenObjects;
 public enum TokenType
 {
     None,
+    [ValueContainer(true, "cscall","win")]
+    CSharp,
     Group,
     [ValueContainer(true, "=", "-=", "+=")]
     SETTERS,
+    [ValueContainer(true, "--", "++")]
+    ShortenOperator,
 
     [ValueContainer(true, "say", "show", "typeof")]
     Function,

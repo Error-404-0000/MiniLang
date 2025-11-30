@@ -34,7 +34,7 @@ namespace MiniLang.GrammarsAnalyers
 
         public int CacheCode { get ; set ; }
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             if (tokens.Length < 2)
             {
@@ -49,7 +49,7 @@ namespace MiniLang.GrammarsAnalyers
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
         {
             var expressionTokens = tokens[1..];
-            if(!new ExpressionGrammarAnalyser(scopeObjectValueManager,FunctionDeclarationManager).IsValidExpression(expressionTokens,out string error))
+            if(!new ExpressionGrammarAnalyser(ref scopeObjectValueManager,FunctionDeclarationManager).IsValidExpression(expressionTokens,out string error))
             {
                 throw new Exception(error);
             }

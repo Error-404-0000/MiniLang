@@ -32,7 +32,7 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
             TokenType inferredType = TokenType.None;
             if (makeSyntax.IsStruct)
             {
-                var buildStruct = context.StructFrame.CreateNewStruct(makeSyntax.IfStructWhatName);
+                var buildStruct = context.StructFrame.CreateNewStruct(makeSyntax.IfStructWhatName,makeSyntax.Identifier,context);
                 evaluated = new RuntimeValue(TokenType.Struct,TokenOperation.None,buildStruct);
             }
             else {
@@ -44,6 +44,7 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
 
             var variable = new RuntimeVariable(makeSyntax.Identifier, inferredType, evaluated);
             context.RuntimeScopeFrame.Declare(variable);
+            context.ReturnedHandled();
 
             return null; // 'make' returns nothing
         }

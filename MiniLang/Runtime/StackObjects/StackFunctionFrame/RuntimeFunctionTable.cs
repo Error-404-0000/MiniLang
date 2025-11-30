@@ -31,5 +31,6 @@ namespace MiniLang.Runtime.StackObjects.StackFunctionFrame
 
             throw new InvalidOperationException($"Function '{name}' with {argCount} args not found.");
         }
+     
     }
 }

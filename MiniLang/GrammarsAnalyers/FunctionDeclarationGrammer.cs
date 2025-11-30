@@ -49,7 +49,7 @@ namespace MiniLang.GrammarsAnalyers
 
         public int CacheCode { get; set; }
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             errorMessage = null;
 
@@ -86,7 +86,7 @@ namespace MiniLang.GrammarsAnalyers
             IGrammarInterpreter grammarInterpreter,
             int line)
         {
-            if (tokens[2].Value is FunctionTokenObject funcToken)
+            if (tokens[2].Value is FunctionCallTokenObject funcToken)
             {
                 // Check that all function arguments are identifiers
                 var invalidArg = funcToken.FunctionArgments
@@ -113,6 +113,7 @@ namespace MiniLang.GrammarsAnalyers
                 }
                 ScopeObjectValueManager SubScope = new ScopeObjectValueManager();
                 SubScope.Parent = scopeObjectValueManager;
+                //setting up the args Name(args..<-these)
                 foreach (var arg in func.FunctionArgments)
                 {
                     SubScope.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
@@ -123,7 +124,9 @@ namespace MiniLang.GrammarsAnalyers
                     });
                 }
                 FunctionDeclarationManager.Add(func);
-                var Body = grammarInterpreter.Interpret((tokens[3].Value as IEnumerable<Token>).ToList(), SubScope, FunctionBodyScope, expressionGrammarAnalyser);
+                scopeObjectValueManager = SubScope;
+                var exp = new ExpressionGrammarAnalyser(SubScope, FunctionBodyScope);
+                var Body = grammarInterpreter.Interpret((tokens[3].Value as IEnumerable<Token>).ToList(), SubScope, FunctionBodyScope, exp);
                 FunctionDeclarationManager.Remove(func);
                
                 FunctionDeclarationManager.Add(func = new FunctionDeclarationSyntaxObject(
@@ -131,7 +134,7 @@ namespace MiniLang.GrammarsAnalyers
                         funcToken.FunctionArgmentsCount,
                         tokens[1].TokenOperation,
                         funcToken.FunctionArgments,
-                       Body
+                        Body
                 ));
 
                 return new Token(

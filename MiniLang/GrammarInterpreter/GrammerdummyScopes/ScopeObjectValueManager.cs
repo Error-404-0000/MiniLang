@@ -10,19 +10,36 @@ namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
     public class ScopeObjectValueManager : IDisposable
     {
         private List<ScopeObjectValue> _scopes = new();
-        
+        private List<ScopeObjectValue> _structScopeRef = new();
+        private bool _is_in_struct = false;
 
         /// <summary>
         /// The parent scope — walk up this chain to access outer-scope values.
         /// </summary>
         public ScopeObjectValueManager? Parent { get; set; }
 
+        public void IsInStruct() => _is_in_struct = true;
+        //struct scope out
+        public void StructOut()
+        {
+            for (int i = 0; i < _structScopeRef.Count(); i++)
+            {
+                _scopes.Remove(_structScopeRef[i]);
+            }
+
+            _is_in_struct = false;
+        }
         public void Add(ScopeObjectValue value)
         {
-            if (_scopes.Any(x => x.Identifier == value.Identifier))
+            //this fixes the Name->TypeName if they are the same
+            var ObjectName = (_is_in_struct?$"_field_":null)+value.Identifier;
+            if (_scopes.Any(x => x.Identifier == ObjectName ))
                 throw new Exception($"Identifier '{value.Identifier}' is already declared in this scope.");
-
             _scopes.Add(value);
+            if (_is_in_struct)
+            {
+                _structScopeRef.Add(value);
+            }
         }
         public TokenType GetTypeOf(string identifier)
         {
@@ -44,6 +61,7 @@ namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
 
         public bool IsAssigned(string identifier)
         {
+            identifier = (_is_in_struct ? $"_field_" : null)+ identifier;
             var p = GetStructPath(identifier);
             var scope = FindScopeWith(p.Count>0 ?p[0]:identifier);
 
@@ -55,6 +73,15 @@ namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
 
         private ScopeObjectValue? FindScopeWith(string identifier)
         {
+            if (_is_in_struct)
+            {
+                var IfFieldName = (_is_in_struct ? $"_field_" : null) + identifier;
+                var _field_path = GetStructPath(IfFieldName);
+
+                var match_field_path = _scopes.FirstOrDefault(x => x.Identifier == (_field_path.Count > 0 ? _field_path[0] : identifier));
+                if (match_field_path != null)
+                    return match_field_path;
+            }
 
             var p = GetStructPath(identifier);
 

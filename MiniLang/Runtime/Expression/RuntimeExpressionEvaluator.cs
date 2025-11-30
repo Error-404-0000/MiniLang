@@ -63,7 +63,7 @@ namespace MiniLang.Runtime.Expression
 
         private RuntimeValue EvaluateFunctionCall(Token token)
         {
-            if (token.Value is not FunctionTokenObject func)
+            if (token.Value is not FunctionCallTokenObject func)
                 throw new Exception("Malformed function call token");
 
             var evaluatedArgs = func.FunctionArgments

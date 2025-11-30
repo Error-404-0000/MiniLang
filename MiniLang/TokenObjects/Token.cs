@@ -15,7 +15,7 @@ public record Token(TokenType TokenType,TokenOperation TokenOperation,TokenTree 
         );
     }
 
-    public static Token DefaultToken() => new Token(TokenType.None, TokenOperation.None, TokenTree.Single, null);
+    public static Token DefaultToken() => new(TokenType.None, TokenOperation.None, TokenTree.Single, null);
     private dynamic CloneValue(object value)
     {
         if (value is List<Token> tokenList)

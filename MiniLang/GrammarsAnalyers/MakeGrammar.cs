@@ -40,7 +40,7 @@ namespace MiniLang.GrammarsAnalyers
 
         public TokenType[] TriggerTokenTypes => throw new NotImplementedException();
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             errorMessage = null;
 
@@ -105,6 +105,18 @@ namespace MiniLang.GrammarsAnalyers
                     }
                     structNameIfWasStruct = tokens[4].Value.ToString();
 
+                    try
+                    {
+                       
+                        var ToString = FunctionDeclarationManager.Get(structNameIfWasStruct + "ToString", 0);//checking if we have any to string Method in the struct
+                        //allows varname() <- calls varnameToString()
+                        FunctionDeclarationManager.Add(new Functions.FunctionCallTokenObject(functionName: identifier, functionArgmentsCount:0, functionArgments: []));
+                    }
+                    catch
+                    {
+                        //we dont
+                    }
+
                     IsStruct = true;
                 }
                 else if(!expressionGrammar.IsValidExpression(expression, out string errorMessage))
@@ -113,6 +125,7 @@ namespace MiniLang.GrammarsAnalyers
                 }
             }
             var makeObject = new MakeSyntaxObject(identifier, tokens[3..tokens.Length], line,IsStruct, structNameIfWasStruct);
+          
             return new Token(TokenType.Keyword, TokenOperation.make, TokenTree.Single, makeObject);
         }
 

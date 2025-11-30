@@ -26,7 +26,7 @@ namespace MiniLang.GrammarInterpreter
         {
             ScopeObjectValueManager scopeObjectValueManager = new ScopeObjectValueManager();
             FunctionDeclarationScopeManager FunctiondeclarationManager = new FunctionDeclarationScopeManager();
-            ExpressionGrammarAnalyser expressionGrammarAnalyser = new(scopeObjectValueManager, FunctiondeclarationManager);
+            ExpressionGrammarAnalyser expressionGrammarAnalyser = new(ref scopeObjectValueManager, FunctiondeclarationManager);
             return Interpret(Tokens, scopeObjectValueManager, FunctiondeclarationManager, expressionGrammarAnalyser);
         }
 
@@ -88,6 +88,7 @@ namespace MiniLang.GrammarInterpreter
                             newFunctionScope.ParentScope = FunctiondeclarationManager;
 
                         newScope.Parent = scopeObjectValueManagerParent;
+                            
                         ExpressionGrammarAnalyser expressionGrammar = new(newScope, FunctiondeclarationManager);
                         var interpreted = Interpret(innerGroupScope, newScope, newFunctionScope, expressionGrammar);
                         results.Add(new Token(TokenType.Scope, TokenOperation.None, TokenTree.Group, interpreted.ToList()));

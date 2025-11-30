@@ -21,7 +21,7 @@ class MiniLangRuntime
     public static void Main(string[] args)
     {
         args = [null];
-        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLang_Syntax_Guide\ClassCreation.mini";
+        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLang_Syntax_Guide\ClassCreation.mini.c";
         if (args.Length == 0)
         {
             Console.WriteLine("Usage: MiniLangRuntime <script-file>");
@@ -68,7 +68,7 @@ class MiniLangRuntime
             new MakeGrammar(), new ConditionGrammar(), new SayGrammar(), new TypeofGrammar(), new UseGrammar(),
             new SetterGrammar(), new FunctionDeclarationGrammar(), new FunctionCallsGrammar(),
             new StandaloneExpressionGrammar(), new ScopeGrammar(), new GiveGrammar(), new WhileGrammar(),
-            new StructGrammer(), new FieldDeclarationGrammer()
+            new StructGrammer(), new FieldDeclarationGrammer(),new CSharpGrammer(),
         ]);
         // Interpret Grammar
         var grammarInterpreter = new GrammarInterpreter(grammarValidator, parsedTokens);
@@ -90,6 +90,7 @@ class MiniLangRuntime
             new WhileExecuteable(),
             new SetterExecutable(),
             new StructExecteable(),
+            
         ]);
 
         //  Context

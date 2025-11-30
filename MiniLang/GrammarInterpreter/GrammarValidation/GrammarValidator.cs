@@ -53,7 +53,7 @@ namespace MiniLang.GrammarInterpreter
                     $"[Grammar Error] No grammar handler found for token: {firstToken.TokenOperation} (Type: {firstToken.TokenType}) on line {line}.");
             }
 
-            if (analyser.Analyse(tokens, out string? message))
+            if (analyser.Analyze(tokens, out string? message))
             {
                 return GrammarAnalysisResult.Error(message ?? "[Grammar Error] Unknown grammar issue.");
             }

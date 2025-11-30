@@ -26,7 +26,7 @@ namespace MiniLang.GrammarInterpreter
                         resolvedArgs.Add(new FunctionArgments(deep, index));
                     }
 
-                    var functionToken = new FunctionTokenObject(
+                    var functionToken = new FunctionCallTokenObject(
                         current.Value.ToString()!,
                         resolvedArgs.Count,
                         resolvedArgs

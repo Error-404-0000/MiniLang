@@ -35,7 +35,7 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
         /// name is invalid.</exception>
         public RuntimeValue Dispatch(Token Token, RuntimeContext context)
         {
-            if (Token.Value is not FunctionTokenObject fc)
+            if (Token.Value is not FunctionCallTokenObject fc)
             {
                 throw new InvalidOperationException("execution error: invalid token body for calling a function.");
             }
@@ -49,6 +49,11 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
             }
             context.PushScope();
             context.PushFunctionTable();
+            //on function scope opened
+            if(function.Declaration.OnFunctionOpened != null)
+            {
+                function.Declaration.OnFunctionOpened(context);
+            }
             //creating the arg local values
             var funcArgs = function.Declaration.FunctionArgments.ToArray();
             for (int i = 0;i < fc.FunctionArgmentsCount; i++)
@@ -57,6 +62,11 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
                     TokenType.Identifier, argments[i]));
             }
             var @return = context.RuntimeEngine.Execute(function.Declaration.Body.ToList());
+            //on function scope Closed
+            if (fc.OnFunctionClosed != null)
+            {
+                fc.OnFunctionClosed(context);
+            }
             context.PopFunctionTable();
             context.PopScope();
             if(@return is null  && function.Declaration.ReturnType is not TokenOperation.ReturnsNothing)

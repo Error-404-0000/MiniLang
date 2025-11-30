@@ -20,7 +20,7 @@ public static class Debugger
             string nextIndent = indent + (last ? "    " : "│   ");
 
             // Function token display
-            if (token.TokenType == TokenType.Function && token.Value is FunctionTokenObject funcObject)
+            if (token.TokenType == TokenType.Function && token.Value is FunctionCallTokenObject funcObject)
             {
                 stringBuilder.AppendLine($"{branch}[Function: {funcObject.FunctionName} (Args: {funcObject.FunctionArgmentsCount})]");
 

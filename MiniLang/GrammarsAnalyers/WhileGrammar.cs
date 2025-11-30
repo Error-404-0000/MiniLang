@@ -35,7 +35,7 @@ namespace MiniLang.GrammarsAnalyers
 
         public int CacheCode { get ; set; }
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             errorMessage = null;
             if (tokens.Length < 2)
@@ -74,6 +74,7 @@ namespace MiniLang.GrammarsAnalyers
 
             var condition = tokens[1].Value as IEnumerable<Token>;
             var body = tokens[2].Value as IEnumerable<Token>;
+            expressionGrammarAnalyser.UpdateScope(scopeObjectValueManager);
             if (!expressionGrammarAnalyser.IsValidExpression(condition?.ToArray() ?? [],out string error))
             {
                 throw new Exception($"Invalid condition in while loop: {error}");

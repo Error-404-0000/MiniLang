@@ -17,26 +17,43 @@ namespace MiniLang.GrammarInterpreter.GrammerdummyScopes
         /// </summary>
         public class FunctionDeclarationScopeManager:IDisposable
         {
-            private  List<FunctionTokenObject> _scopeFunctions = new();
+            private  List<FunctionCallTokenObject> _scopeFunctions = new();
 
             /// <summary>
             /// Optional reference to the parent function scope, used for hierarchical lookup.
             /// </summary>
             public FunctionDeclarationScopeManager? ParentScope { get; set; }
+            private List<FunctionCallTokenObject> _StructFunctions=new();
+
+            private bool _isInStruct;
+
+
+            public void StructIn()=>_isInStruct = true;
+            public void StructOut()
+            {
+                foreach (var structItem in _StructFunctions)
+                    _scopeFunctions.Remove(structItem);
+                _StructFunctions.Clear();
+                _isInStruct = false;
+            }
 
             /// <summary>
             /// Adds a new function declaration to the current scope.
             /// </summary>
             /// <param name="function">The function token object to add.</param>
             /// <exception cref="Exception">Thrown if a function with the same name already exists in this scope.</exception>
-            public void Add(FunctionTokenObject function)
+            public void Add(FunctionCallTokenObject function)
             {
+                
                 if (_scopeFunctions.Any(f => f.FunctionName == function.FunctionName&&f.FunctionArgmentsCount== function.FunctionArgmentsCount))
                     throw new Exception($"Function '{function.FunctionName}' is already declared in this scope.");
+                if (_isInStruct)
+                    _StructFunctions.Add(function);
+
 
                 _scopeFunctions.Add(function);
             }
-            public void Remove(FunctionTokenObject function)
+            public void Remove(FunctionCallTokenObject function)
             {
                 if (!_scopeFunctions.Any(f => f.FunctionName == function.FunctionName && f.FunctionArgmentsCount == function.FunctionArgmentsCount))
                     throw new Exception($"Function '{function.FunctionName}' is already declared in this scope.");
@@ -69,9 +86,11 @@ namespace MiniLang.GrammarInterpreter.GrammerdummyScopes
             /// <param name="functionName">The name of the function to look up.</param>
             /// <returns>The corresponding FunctionTokenObject.</returns>
             /// <exception cref="Exception">Thrown if the function is not found in any scope.</exception>
-            public FunctionTokenObject Get(string functionName,int FunctionCount)
+            public FunctionCallTokenObject Get(string functionName,int FunctionCount)
             {
-                var func = _scopeFunctions.FirstOrDefault(f => f.FunctionName == functionName&& f.FunctionArgmentsCount == FunctionCount);
+                var path = GetStructPath(functionName);
+                
+                var func = _scopeFunctions.FirstOrDefault(f => f.FunctionName == (path.Count>0?path[^1]:functionName) && f.FunctionArgmentsCount == FunctionCount);
 
                 if (func != null)
                     return func;
@@ -80,6 +99,30 @@ namespace MiniLang.GrammarInterpreter.GrammerdummyScopes
                     return first;
 
                 throw new Exception($"Function '{functionName}' is not declared in any accessible scope with the argment counts.");
+            }
+            private List<string> GetStructPath(string name_dir)
+            {
+                List<string> path = new List<string>();
+
+
+                StringBuilder currentPath = new StringBuilder();
+                foreach (char currentChar in name_dir)
+                {
+                    if (currentChar is '.')
+                    {
+                        path.Add(currentPath.ToString());
+                        currentPath.Length = 0;
+                    }
+                    else
+                    {
+                        currentPath.Append(currentChar);
+                    }
+                }
+                if (currentPath.Length > 0)
+                    path.Add(currentPath.ToString());
+
+                return path;
+
             }
 
             /// <summary>

@@ -1,8 +1,8 @@
-﻿fn nothing Print(string){
+fn nothing Print(string){
     say string;
 }
 fn nothing print(string){
-    print(string);
+    Print(string);
 }
 fn nothing print(strin1,string2){
     say strin1 + string2;
@@ -14,7 +14,7 @@ fn string isOdd(number){
     else
         give "true";
     done
-)
+}
 
 fn object isEven(number){
     if(number % 2 == 0):

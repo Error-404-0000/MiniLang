@@ -41,7 +41,7 @@ namespace MiniLang.GrammarsAnalyers
 
         public int CacheCode { get; set; }
 
-        public bool Analyse(Token[] tokens, out string errorMessage)
+        public bool Analyze(Token[] tokens, out string errorMessage)
         {
             errorMessage = null;
 
