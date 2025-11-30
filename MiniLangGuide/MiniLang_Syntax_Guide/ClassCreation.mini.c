@@ -30,7 +30,7 @@ struct Time{
     public Seconds->number;
 
 
-     fn string TimeToString(){
+    fn string TimeToString(){
         
         make h = "$(Hours)";
         if(Hours < 10){
