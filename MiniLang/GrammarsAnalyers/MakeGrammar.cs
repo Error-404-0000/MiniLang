@@ -72,10 +72,10 @@ namespace MiniLang.GrammarsAnalyers
             return false;
         }
 
-        public Token BuildNode(Token[] tokens,ScopeObjectValueManager objectValueManager,
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager objectValueManager,
              ExpressionGrammarAnalyser expressionGrammar,
              FunctionDeclarationScopeManager FunctionDeclarationManager
-            , IGrammarInterpreter grammarInterpreter, int line)
+            , IGrammarInterpreter grammarInterpreter, int line, Action<Token> PushToken)
         {
             string identifier = (string)tokens[1].Value;
             //FunctionTokenObject valueToken = tokens[2..^1];

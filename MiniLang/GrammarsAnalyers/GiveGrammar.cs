@@ -46,7 +46,8 @@ namespace MiniLang.GrammarsAnalyers
 
         }
 
-        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line
+            , Action<Token> PushToken)
         {
             var expressionTokens = tokens[1..];
             if(!new ExpressionGrammarAnalyser(ref scopeObjectValueManager,FunctionDeclarationManager).IsValidExpression(expressionTokens,out string error))

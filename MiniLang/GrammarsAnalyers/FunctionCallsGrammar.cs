@@ -55,7 +55,7 @@ namespace MiniLang.GrammarsAnalyers
             
         }
 
-        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line, Action<Token> PushToken)
         {
             if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall || tokens[0].Value is  FunctionCallTokenObject func&&
                 FunctionDeclarationManager.Get(func.FunctionName,func.FunctionArgmentsCount) is  null)

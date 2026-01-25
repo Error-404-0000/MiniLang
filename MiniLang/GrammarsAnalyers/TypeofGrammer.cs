@@ -38,7 +38,7 @@ namespace MiniLang.GrammarsAnalyers
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
             FunctionDeclarationScopeManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
-            int line)
+            int line, Action<Token> PushToken)
         {
             var identifierToken = tokens[1];
             var type = scopeObjectValueManager.GetTypeOf(identifierToken.Value?.ToString());

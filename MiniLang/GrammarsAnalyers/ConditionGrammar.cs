@@ -82,7 +82,7 @@ namespace MiniLang.GrammarsAnalyers
         }
 
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
-        FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int line)
+        FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int line, Action<Token> PushToken)
         {
             if (tokens.Length < 2)
                 throw new ArgumentException("Invalid token length for 'if' grammar.");

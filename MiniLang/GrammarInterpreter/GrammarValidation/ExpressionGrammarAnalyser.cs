@@ -112,6 +112,7 @@ namespace MiniLang.GrammarInterpreter.GrammarValidation
                 case TokenType.StringLiteralExpression:
                 case TokenType.ReturnType:
                 case TokenType.CSharp:
+                case TokenType.ShortenOperator:
                     i++;
                     return true;
 

@@ -58,7 +58,7 @@ namespace MiniLang.GrammarInterpreter
                         throw new Exception($"Expected body scope for token '{currentToken.Value}' at index {i}");
 
                     var headerSegment = tokens.Skip(i).Take(scopeIndex + 1 - i).ToArray();
-                    var result = Validator.Analyse(headerSegment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i);
+                    var result = Validator.Analyse(headerSegment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i,AddToken => PushToken(results,AddToken));
                     if (result.HasError)
                         throw new Exception(result.ErrorMessage);
 
@@ -115,7 +115,7 @@ namespace MiniLang.GrammarInterpreter
                 }
 
                 var segment = tokens.Skip(i).Take(end - i).ToArray();
-                var analyseResult = Validator.Analyse(segment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i);
+                var analyseResult = Validator.Analyse(segment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i, AddToken => PushToken(results, AddToken));
 
                 if (analyseResult.HasError)
                     throw new Exception(analyseResult.ErrorMessage);
@@ -164,6 +164,16 @@ namespace MiniLang.GrammarInterpreter
                     yield return token;
                 }
             }
+        }
+
+        /// <summary>
+        /// add the token to built-token
+        /// </summary>
+        /// <param name="builtTokens"></param>
+        /// <param name="token"></param>
+        public void PushToken(List<Token> builtTokens,Token token)
+        {
+            builtTokens.Add(token);
         }
     }
 

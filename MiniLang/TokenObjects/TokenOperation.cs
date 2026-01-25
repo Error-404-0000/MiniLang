@@ -106,5 +106,11 @@
         Cscall,
         #endregion
 
+        #region Shorten
+        [ValueContainer(false,"++")]
+        Increment,
+        [ValueContainer(false, "--")]
+        Decrement
+        #endregion
     }
 }

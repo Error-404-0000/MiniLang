@@ -59,7 +59,7 @@ namespace MiniLang.GrammarsAnalyers.StructDeclaration
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager,
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
             FunctionDeclarationScopeManager FunctionDeclarationManager,
-            IGrammarInterpreter grammarInterpreter, int Line)
+            IGrammarInterpreter grammarInterpreter, int Line, Action<Token> PushToken)
         {
             var structName = tokens[1].Value.ToString() ?? throw new InvalidOperationException($"Struct name missing at line {Line}.");
             var scope = tokens[2].Value;
@@ -94,14 +94,16 @@ namespace MiniLang.GrammarsAnalyers.StructDeclaration
             {
                 FunctionDeclarationManager.Add(ToStringFunction);
             }
-            //FunctionDeclarationSyntaxObject ToStringStructMethods = new(null, 0, TokenOperation.ReturnsObject, [], []);
-            //foreach(FieldItem field in from field in tokenResult where field.Value is FieldItem fielditem &&
-            //                                   fielditem.IsStruct select field.Value as FieldItem)
-            //{
-            //    FunctionDeclarationManager.Add(ToStringStructMethods with { FunctionName = field.FieldName });
-            //}
-            
-        
+            FunctionDeclarationSyntaxObject ToStringStructMethods = new(null, 0, TokenOperation.ReturnsObject, [], []);
+            foreach (FieldItem field in from field in tokenResult
+                                        where field.Value is FieldItem fielditem &&
+                                               fielditem.IsStruct
+                                        select field.Value as FieldItem)
+            {
+                FunctionDeclarationManager.Add(ToStringStructMethods with { FunctionName = field.FieldName });
+            }
+
+
             return new Token(TokenType.Struct, TokenOperation.None, TokenTree.Single, new StructSyntaxObject()
             {
 

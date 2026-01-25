@@ -84,7 +84,7 @@ namespace MiniLang.GrammarsAnalyers
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
             FunctionDeclarationScopeManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
-            int line)
+            int line, Action<Token> PushToken)
         {
             if (tokens[2].Value is FunctionCallTokenObject funcToken)
             {

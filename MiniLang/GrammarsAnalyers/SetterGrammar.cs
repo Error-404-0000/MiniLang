@@ -72,7 +72,7 @@ namespace MiniLang.GrammarsAnalyers
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
             FunctionDeclarationScopeManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
-            int line)
+            int line, Action<Token> PushToken)
         {
             string identifier = tokens[0].Value?.ToString();
 

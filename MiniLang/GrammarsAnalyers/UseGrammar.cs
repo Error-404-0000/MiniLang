@@ -54,7 +54,7 @@ namespace MiniLang.GrammarsAnalyers
             ExpressionGrammarAnalyser expressionGrammarAnalyser,
             FunctionDeclarationScopeManager FunctionDeclarationManager,
             IGrammarInterpreter grammarInterpreter,
-            int line)
+            int line, Action<Token> PushToken)
         {
             var pathToken = tokens[1];
             var path = pathToken.Value?.ToString();

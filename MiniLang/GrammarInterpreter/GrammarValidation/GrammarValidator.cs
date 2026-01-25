@@ -33,7 +33,7 @@ namespace MiniLang.GrammarInterpreter
         /// Analyzes the given tokens using the appropriate grammar handler.
         /// </summary>
         public GrammarAnalysisResult Analyse(Token[] tokens,ScopeObjectValueManager scopeStack, ExpressionGrammarAnalyser expressionGrammar,
-            FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter IGrammarInterpreter, int line)
+            FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter IGrammarInterpreter, int line,Action<Token> PushToken)
         {
             if (tokens == null || tokens.Length == 0)
             {
@@ -58,7 +58,7 @@ namespace MiniLang.GrammarInterpreter
                 return GrammarAnalysisResult.Error(message ?? "[Grammar Error] Unknown grammar issue.");
             }
 
-            var node = analyser.BuildNode(tokens, scopeStack,expressionGrammar, FunctionDeclarationManager, IGrammarInterpreter, line);
+            var node = analyser.BuildNode(tokens, scopeStack, expressionGrammar, FunctionDeclarationManager, IGrammarInterpreter, line, PushToken);
             return GrammarAnalysisResult.Success(node);
         }
 

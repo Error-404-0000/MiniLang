@@ -29,7 +29,7 @@ struct Time{
     public Hours->number;
     public Seconds->number;
 
-
+    
     fn string TimeToString(){
         
         make h = "$(Hours)";
@@ -77,6 +77,7 @@ struct User{
 
  
 }
+make y = 40000;
 
 make user = new User;
 
@@ -95,8 +96,17 @@ user.JoinedDate.Day.Year = 2025;
 user.JoinedDate.Time.Hours = 9;
 user.JoinedDate.Time.Min = 32;
 user.JoinedDate.Time.Seconds = 12;
+fn nothing GetUser(numbs[]) {
+    make user = new User;
 
 
+    user.Name.FirstName = "hello world";
+    user.Name.LastName = "new_user_made_from_function";
+    give user;
+
+}
+make g = GetUser([1,2,3]);
+say g.Name.LastName;
 
 
 fn nothing wait(number1){
@@ -137,12 +147,12 @@ fn nothing InCressTime(){
 
 
 
-while(1==1){
-    InCressTime();
-    make DateToString = user.JoinedDate.Time();
-    say DateToString;
-    wait(1);
-}
+
+
+
+
+
+
 
 
 

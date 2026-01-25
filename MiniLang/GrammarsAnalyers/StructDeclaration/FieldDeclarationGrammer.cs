@@ -58,7 +58,8 @@ namespace MiniLang.GrammarsAnalyers.StructDeclaration
         }
 
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser,
-            FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line)
+            FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line,
+            Action<Token> PushToken)
         {
             if (tokens[3].TokenType is TokenType.Identifier)
             {

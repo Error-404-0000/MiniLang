@@ -15,6 +15,7 @@ using MiniLang.Runtime.RuntimeObjectStack;
 using MiniLang.Runtime.RuntimeExecutors.Builtins;
 using MiniLang.GrammarsAnalyers.StructDeclaration;
 using MiniLang.Runtime.RuntimeExecutors.Builtins.Struct;
+using MiniLang.GrammarAnalyzers;
 
 class MiniLangRuntime
 {
@@ -69,6 +70,7 @@ class MiniLangRuntime
             new SetterGrammar(), new FunctionDeclarationGrammar(), new FunctionCallsGrammar(),
             new StandaloneExpressionGrammar(), new ScopeGrammar(), new GiveGrammar(), new WhileGrammar(),
             new StructGrammer(), new FieldDeclarationGrammer(),new CSharpGrammer(),
+            new ShortenOperatorGrammar()
         ]);
         // Interpret Grammar
         var grammarInterpreter = new GrammarInterpreter(grammarValidator, parsedTokens);
@@ -90,6 +92,7 @@ class MiniLangRuntime
             new WhileExecuteable(),
             new SetterExecutable(),
             new StructExecteable(),
+            new StandaloneExecteable()
             
         ]);
 
