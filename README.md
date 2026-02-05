@@ -248,3 +248,7 @@ It’s like plug and play for custom behavior!
 you can also see the syntax [here](https://github.com/Error-404-0000/MiniLang/tree/master/MiniLangGuide)
 ---
 
+
+## F# Reimplementation
+
+A new F# rewrite lives in `MiniLang.FSharp/` with async future support (`future` + `await`) and a CLI runner.
