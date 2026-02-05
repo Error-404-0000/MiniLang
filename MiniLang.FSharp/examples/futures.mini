@@ -1,0 +1,11 @@
+fn delayed_add(a, b):
+    make task = future(a + b)
+    give await task
+done
+
+make n = delayed_add(20, 22)
+say n
+
+make slow = future(sleep(50))
+await slow
+say "done"
