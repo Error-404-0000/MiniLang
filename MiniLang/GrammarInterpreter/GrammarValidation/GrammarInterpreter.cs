@@ -115,12 +115,12 @@ namespace MiniLang.GrammarInterpreter
                 }
 
                 var segment = tokens.Skip(i).Take(end - i).ToArray();
-                var analyseResult = Validator.Analyse(segment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i, AddToken => PushToken(results, AddToken));
+                var analyzeResult = Validator.Analyse(segment, scopeObjectValueManagerParent, expressionGrammarAnalyser, FunctiondeclarationManager, this, i, AddToken => PushToken(results, AddToken));
 
-                if (analyseResult.HasError)
-                    throw new Exception(analyseResult.ErrorMessage);
+                if (analyzeResult.HasError)
+                    throw new Exception(analyzeResult.ErrorMessage);
 
-                results.Add(analyseResult.Node!);
+                results.Add(analyzeResult.Node!);
                 i = end + 1;
             }
 

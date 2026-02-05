@@ -1,6 +1,7 @@
 ﻿using MiniLang.Interfaces;
 using MiniLang.Runtime.RuntimeObjectStack;
 using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.StructCreation;
 using MiniLang.SyntaxObjects.Make;
 using MiniLang.TokenObjects;
 using System;
@@ -40,6 +41,7 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
 
             }
             inferredType = evaluated.Type;
+           
 
 
             var variable = new RuntimeVariable(makeSyntax.Identifier, inferredType, evaluated);

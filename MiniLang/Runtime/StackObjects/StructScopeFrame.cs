@@ -83,8 +83,8 @@ namespace MiniLang.Runtime.StackObjects
                 TokenOperation.None,
                 TokenTree.Single,
                 func = new FunctionDeclarationSyntaxObject(
-                    FunctionName,
-                    0,
+                   functionName: FunctionName,
+                   functionArgmentsCount: 0,
                     TokenOperation.ReturnsString,
                     functionArgments: [],
                     Body: [

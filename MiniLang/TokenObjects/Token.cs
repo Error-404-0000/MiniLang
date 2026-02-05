@@ -58,11 +58,21 @@ public record Token(TokenType TokenType,TokenOperation TokenOperation,TokenTree 
         // Value
         bool valueIsToken = token.Value is Token;
 
-        if (!valueIsToken)
+         if (token.Value is IEnumerable<Token> tokens)
+        {
+            foreach (var toke in tokens)
+            {
+                PrintToken(toke, childIndent + "   ", true);
+
+            }
+
+        }
+        else  if (!valueIsToken)
         {
             // Print normally
             PrintRow("Value", token.Value, childIndent, true);
         }
+
         else
         {
             // Print header for nested token

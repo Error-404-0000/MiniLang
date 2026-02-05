@@ -96,7 +96,7 @@ user.JoinedDate.Day.Year = 2025;
 user.JoinedDate.Time.Hours = 9;
 user.JoinedDate.Time.Min = 32;
 user.JoinedDate.Time.Seconds = 12;
-fn nothing GetUser(numbs[]) {
+fn object GetUser() {
     make user = new User;
 
 
@@ -105,7 +105,10 @@ fn nothing GetUser(numbs[]) {
     give user;
 
 }
-make g = GetUser([1,2,3]);
+make g = GetUser();
+say g.Name.LastName;
+make y1 = GetUser();
+y1.Name.LastName = "edited";
 say g.Name.LastName;
 
 

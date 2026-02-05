@@ -110,6 +110,7 @@ class MiniLangRuntime
         ));
 
         var runtime = new RuntimeEngine(dispatcher, context);
+
         runtime.Execute(interpreted.ToList());
 #endif
     }
