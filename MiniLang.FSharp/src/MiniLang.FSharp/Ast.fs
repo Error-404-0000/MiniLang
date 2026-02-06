@@ -8,11 +8,14 @@ type TokenKind =
     | Identifier
     | Number
     | String
+    | Char
     | Operator
     | LParen
     | RParen
     | Colon
     | Comma
+    | Semicolon
+    | Dot
     | NewLine
     | Eof
 
@@ -35,6 +38,7 @@ type Value =
 type Expr =
     | Literal of Value
     | Identifier of string
+    | TypeOf of string
     | Binary of Expr * string * Expr
     | Call of string * Expr list
     | Await of Expr
@@ -42,6 +46,9 @@ type Expr =
 [<RequireQualifiedAccess>]
 type Statement =
     | Make of name: string * value: Expr
+    | Set of name: string * op: string * value: Expr
+    | Shorten of name: string * op: string
+    | Use of path: string
     | Say of Expr
     | Give of Expr
     | While of condition: Expr * body: Statement list

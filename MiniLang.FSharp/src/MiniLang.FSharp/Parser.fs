@@ -1,6 +1,7 @@
 namespace MiniLang.FSharp
 
 open System
+open System.Globalization
 
 module Parser =
     type private State =
@@ -9,6 +10,12 @@ module Parser =
 
     let private current state = state.Tokens[state.Position]
     let private previous state = state.Tokens[state.Position - 1]
+    let private peek state offset =
+        let index = state.Position + offset
+        if index >= state.Tokens.Length then
+            state.Tokens[state.Tokens.Length - 1]
+        else
+            state.Tokens[index]
 
     let private advance state =
         if state.Position < state.Tokens.Length - 1 then
@@ -34,12 +41,14 @@ module Parser =
             raise (ParseException(error, token.Line, token.Column))
 
     let private skipNewLines state =
-        while matchToken TokenKind.NewLine None state do
+        while matchToken TokenKind.NewLine None state || matchToken TokenKind.Semicolon None state do
             ()
 
     let rec private parsePrimary state =
         if matchToken TokenKind.Number None state then
-            Expr.Literal(Value.Number(Double.Parse((previous state).Lexeme)))
+            Expr.Literal(Value.Number(Double.Parse((previous state).Lexeme, CultureInfo.InvariantCulture)))
+        elif matchToken TokenKind.Char None state then
+            Expr.Literal(Value.Text((previous state).Lexeme))
         elif matchToken TokenKind.String None state then
             Expr.Literal(Value.Text((previous state).Lexeme))
         elif matchToken TokenKind.Identifier None state then
@@ -54,6 +63,9 @@ module Parser =
                 Expr.Call(id, List.ofSeq args)
             else
                 Expr.Identifier id
+        elif matchToken TokenKind.Keyword (Some "typeof") state then
+            let nameToken = consume TokenKind.Identifier None "Expected identifier after typeof" state
+            Expr.TypeOf nameToken.Lexeme
         elif matchToken TokenKind.Keyword (Some "await") state then
             Expr.Await(parsePrimary state)
         elif matchToken TokenKind.LParen None state then
@@ -64,11 +76,19 @@ module Parser =
             let token = current state
             raise (ParseException($"Expected expression but got '{token.Lexeme}'", token.Line, token.Column))
 
-    and private parseFactor state =
+    and private parseExponent state =
         let mutable expr = parsePrimary state
-        while check TokenKind.Operator None state && ["*"; "/"; "%"].Contains((current state).Lexeme) do
+        while check TokenKind.Operator None state && ["^"].Contains((current state).Lexeme) do
             let op = (advance state).Lexeme
             let right = parsePrimary state
+            expr <- Expr.Binary(expr, op, right)
+        expr
+
+    and private parseFactor state =
+        let mutable expr = parseExponent state
+        while check TokenKind.Operator None state && ["*"; "/"; "%"].Contains((current state).Lexeme) do
+            let op = (advance state).Lexeme
+            let right = parseExponent state
             expr <- Expr.Binary(expr, op, right)
         expr
 
@@ -120,7 +140,20 @@ module Parser =
             let name = (consume TokenKind.Identifier None "Expected variable name after make" state).Lexeme
             ignore (consume TokenKind.Operator (Some "=") "Expected '=' in make statement" state)
             Statement.Make(name, parseExpression state)
+        elif matchToken TokenKind.Keyword (Some "use") state then
+            let pathToken = consume TokenKind.String None "Expected string literal after use" state
+            Statement.Use pathToken.Lexeme
+        elif check TokenKind.Identifier None state
+             && (peek state 1).Kind = TokenKind.Operator then
+            let name = (advance state).Lexeme
+            let op = (advance state).Lexeme
+            if op = "++" || op = "--" then
+                Statement.Shorten(name, op)
+            else
+                Statement.Set(name, op, parseExpression state)
         elif matchToken TokenKind.Keyword (Some "say") state then
+            Statement.Say(parseExpression state)
+        elif matchToken TokenKind.Keyword (Some "show") state then
             Statement.Say(parseExpression state)
         elif matchToken TokenKind.Keyword (Some "give") state then
             Statement.Give(parseExpression state)

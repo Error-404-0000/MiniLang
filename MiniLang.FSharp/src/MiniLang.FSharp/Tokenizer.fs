@@ -5,16 +5,36 @@ open System.Globalization
 
 module Tokenizer =
     let private keywords =
-        set [ "make"; "say"; "give"; "if"; "else"; "done"; "while"; "fn"; "await" ]
+        set [ "make"; "say"; "show"; "give"; "if"; "else"; "done"; "while"; "fn"; "await"; "use"; "typeof" ]
 
     let private singleCharTokens =
-        dict [ '(', TokenKind.LParen; ')', TokenKind.RParen; ':', TokenKind.Colon; ',', TokenKind.Comma ]
+        dict
+            [ '(', TokenKind.LParen
+              ')', TokenKind.RParen
+              ':', TokenKind.Colon
+              ',', TokenKind.Comma
+              ';', TokenKind.Semicolon
+              '.', TokenKind.Dot ]
+
+    let private multiCharOps =
+        set [ "+="; "-="; "*="; "<="; ">="; "=="; "!="; "->"; "++"; "--" ]
 
     let private isOperatorChar c =
         "+-*/%^=!<>".Contains(c)
 
     let private emit kind lexeme line col =
         { Kind = kind; Lexeme = lexeme; Line = line; Column = col }
+
+    let private mergeDottedIdentifiers (tokens: Token list) =
+        let rec loop acc remaining =
+            match remaining with
+            | { Kind = TokenKind.Identifier; Lexeme = first; Line = line; Column = col } :: { Kind = TokenKind.Dot } :: { Kind = TokenKind.Identifier; Lexeme = second } :: tail ->
+                let merged = { Kind = TokenKind.Identifier; Lexeme = $"{first}.{second}"; Line = line; Column = col }
+                loop acc (merged :: tail)
+            | head :: tail -> loop (head :: acc) tail
+            | [] -> List.rev acc
+
+        loop [] tokens
 
     let tokenize (source: string) =
         let rec loop idx line col acc =
@@ -24,7 +44,7 @@ module Tokenizer =
                 let ch = source[idx]
                 match ch with
                 | ' ' | '\t' | '\r' -> loop (idx + 1) line (col + 1) acc
-                | '\n' -> loop (idx + 1) (line + 1) 1 (emit TokenKind.NewLine "\\n" line col :: acc)
+                | '\n' -> loop (idx + 1) (line + 1) 1 acc
                 | _ when singleCharTokens.ContainsKey(ch) ->
                     loop (idx + 1) line (col + 1) (emit singleCharTokens[ch] (string ch) line col :: acc)
                 | '"' ->
@@ -40,6 +60,19 @@ module Tokenizer =
                     if not terminated then
                         raise (ParseException("Unterminated string", line, col))
                     loop i line (col + (i - idx)) (emit TokenKind.String buffer line col :: acc)
+                | '\'' ->
+                    let mutable i = idx + 1
+                    let mutable buffer = ""
+                    let mutable terminated = false
+                    while i < source.Length && not terminated do
+                        if source[i] = '\'' then
+                            terminated <- true
+                        else
+                            buffer <- buffer + string source[i]
+                        i <- i + 1
+                    if not terminated || buffer.Length = 0 then
+                        raise (ParseException("Unterminated char literal", line, col))
+                    loop i line (col + (i - idx)) (emit TokenKind.Char buffer line col :: acc)
                 | _ when Char.IsDigit(ch) ->
                     let mutable i = idx
                     while i < source.Length && (Char.IsDigit(source[i]) || source[i] = '.') do
@@ -56,11 +89,16 @@ module Tokenizer =
                     loop i line (col + (i - idx)) (emit kind lexeme line col :: acc)
                 | _ when isOperatorChar ch ->
                     let mutable i = idx + 1
-                    if i < source.Length && isOperatorChar source[i] then
-                        i <- i + 1
+                    let twoChar =
+                        if i < source.Length then
+                            source.Substring(idx, 2)
+                        else
+                            string ch
+                    if multiCharOps.Contains twoChar then
+                        i <- idx + 2
                     let lexeme = source.Substring(idx, i - idx)
                     loop i line (col + (i - idx)) (emit TokenKind.Operator lexeme line col :: acc)
                 | _ ->
                     raise (ParseException($"Unexpected character '{ch}'", line, col))
 
-        loop 0 1 1 []
+        loop 0 1 1 [] |> mergeDottedIdentifiers
