@@ -10,8 +10,9 @@ module Tokenizer =
     let private singleCharTokens =
         dict [ '(', TokenKind.LParen; ')', TokenKind.RParen; ':', TokenKind.Colon; ',', TokenKind.Comma ]
 
-    let private isOperatorChar c =
+    let private isOperatorChar (c: char) =
         "+-*/%^=!<>".Contains(c)
+
 
     let private emit kind lexeme line col =
         { Kind = kind; Lexeme = lexeme; Line = line; Column = col }

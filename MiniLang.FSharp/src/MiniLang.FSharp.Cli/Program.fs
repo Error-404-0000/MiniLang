@@ -1,7 +1,9 @@
 open MiniLang.FSharp
 
 [<EntryPoint>]
-let main argv =
+let main  none:int=
+    let argv =
+        [ @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLang_Syntax_Guide\ClassCreation.mini.c" ]
     if argv.Length = 0 then
         eprintfn "Usage: minilang-fsharp <file.mini>"
         1

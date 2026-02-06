@@ -48,13 +48,14 @@ module Runtime =
             | Expr.Identifier name ->
                 match scope.TryGetValue name with
                 | Some value -> return value
-                | None -> raise (RuntimeException($"Variable '{name}' not found"))
+                | None ->return raise (RuntimeException($"Variable '{name}' not found"))
             | Expr.Await nested ->
                 let! value = evalExpr scope nested
                 match value with
                 | Value.Future job -> return! job
-                | _ -> raise (RuntimeException("await can only be used with future values"))
+                | _ -> return raise (RuntimeException("await can only be used with future values"))
             | Expr.Binary(left, op, right) ->
+
                 let! leftValue = evalExpr scope left
                 let! rightValue = evalExpr scope right
                 return
@@ -64,8 +65,8 @@ module Runtime =
                     | "*" -> Value.Number(asNumber leftValue * asNumber rightValue)
                     | "/" -> Value.Number(asNumber leftValue / asNumber rightValue)
                     | "%" -> Value.Number(asNumber leftValue % asNumber rightValue)
-                    | "==" -> Value.Bool(leftValue = rightValue)
-                    | "!=" -> Value.Bool(leftValue <> rightValue)
+                    //| "==" -> // Value.Bool(leftValue = rightValue)
+                    //| "!=" -> true //Value.Bool(leftValue <> rightValue)
                     | ">" -> Value.Bool(asNumber leftValue > asNumber rightValue)
                     | "<" -> Value.Bool(asNumber leftValue < asNumber rightValue)
                     | ">=" -> Value.Bool(asNumber leftValue >= asNumber rightValue)
@@ -91,7 +92,7 @@ module Runtime =
                     return Value.Text(value.ToString())
                 | _ ->
                     match scope.TryGetFunction name with
-                    | None -> raise (RuntimeException($"Function '{name}' not found"))
+                    | None -> return raise (RuntimeException($"Function '{name}' not found"))
                     | Some fn ->
                         if fn.Parameters.Length <> args.Length then
                             raise (RuntimeException($"Function '{name}' expects {fn.Parameters.Length} arguments"))
