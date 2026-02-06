@@ -6,6 +6,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MiniLang.FSharp", "src/Mini
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MiniLang.FSharp.Cli", "src/MiniLang.FSharp.Cli/MiniLang.FSharp.Cli.fsproj", "{24908B26-42EF-4208-930E-D7A349E0A8D8}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MiniLang.FSharp.Tests", "src/MiniLang.FSharp.Tests/MiniLang.FSharp.Tests.fsproj", "{FB2B68A3-D105-4BCD-932A-9BD97BC4062D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,5 +22,9 @@ Global
 		{24908B26-42EF-4208-930E-D7A349E0A8D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{24908B26-42EF-4208-930E-D7A349E0A8D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{24908B26-42EF-4208-930E-D7A349E0A8D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB2B68A3-D105-4BCD-932A-9BD97BC4062D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB2B68A3-D105-4BCD-932A-9BD97BC4062D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB2B68A3-D105-4BCD-932A-9BD97BC4062D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB2B68A3-D105-4BCD-932A-9BD97BC4062D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

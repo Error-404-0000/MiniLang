@@ -8,9 +8,11 @@
 
   <ItemGroup>
     <Compile Include="Ast.fs" />
+    <Compile Include="Preprocessor.fs" />
     <Compile Include="Tokenizer.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Runtime.fs" />
+    <Compile Include="Debugger.fs" />
     <Compile Include="MiniLangEngine.fs" />
   </ItemGroup>
 </Project>

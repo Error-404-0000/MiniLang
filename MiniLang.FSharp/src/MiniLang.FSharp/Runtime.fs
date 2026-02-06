@@ -2,6 +2,7 @@ namespace MiniLang.FSharp
 
 open System
 open System.Collections.Generic
+open System.Globalization
 
 module Runtime =
     type private Scope(parent: Scope option) =
@@ -17,6 +18,15 @@ module Runtime =
 
         member _.SetValue(name: string, value: Value) =
             values[name] <- value
+
+        member _.TryUpdateValue(name: string, value: Value) =
+            if values.ContainsKey(name) then
+                values[name] <- value
+                true
+            else
+                parent
+                |> Option.map (fun p -> p.TryUpdateValue(name, value))
+                |> Option.defaultValue false
 
         member _.SetFunction(name: string, fn: FunctionValue) =
             functions[name] <- fn
@@ -41,6 +51,24 @@ module Runtime =
         | Value.Nothing -> false
         | Value.Future _ -> true
 
+    let private valueTypeName = function
+        | Value.Number _ -> "number"
+        | Value.Text _ -> "string"
+        | Value.Bool _ -> "number"
+        | Value.Nothing -> "nothing"
+        | Value.Future _ -> "object"
+
+    let private ensureSameType left right =
+        if valueTypeName left <> valueTypeName right then
+            raise (RuntimeException($"Type mismatch: Cannot combine {valueTypeName right} with {valueTypeName left}"))
+
+    let private valueToString = function
+        | Value.Number n -> n.ToString(CultureInfo.InvariantCulture)
+        | Value.Text t -> t
+        | Value.Bool b -> if b then "true" else "false"
+        | Value.Nothing -> "nothing"
+        | Value.Future _ -> "<future>"
+
     let rec private evalExpr (scope: Scope) (expr: Expr) : Async<Value> =
         async {
             match expr with
@@ -48,6 +76,10 @@ module Runtime =
             | Expr.Identifier name ->
                 match scope.TryGetValue name with
                 | Some value -> return value
+                | None -> raise (RuntimeException($"Variable '{name}' not found"))
+            | Expr.TypeOf name ->
+                match scope.TryGetValue name with
+                | Some value -> return Value.Text(valueTypeName value)
                 | None -> raise (RuntimeException($"Variable '{name}' not found"))
             | Expr.Await nested ->
                 let! value = evalExpr scope nested
@@ -64,6 +96,7 @@ module Runtime =
                     | "*" -> Value.Number(asNumber leftValue * asNumber rightValue)
                     | "/" -> Value.Number(asNumber leftValue / asNumber rightValue)
                     | "%" -> Value.Number(asNumber leftValue % asNumber rightValue)
+                    | "^" -> Value.Number(Math.Pow(asNumber leftValue, asNumber rightValue))
                     | "==" -> Value.Bool(leftValue = rightValue)
                     | "!=" -> Value.Bool(leftValue <> rightValue)
                     | ">" -> Value.Bool(asNumber leftValue > asNumber rightValue)
@@ -88,7 +121,12 @@ module Runtime =
                     if args.Length <> 1 then
                         raise (RuntimeException("str(x) expects exactly one argument"))
                     let! value = evalExpr scope args[0]
-                    return Value.Text(value.ToString())
+                    return Value.Text(valueToString value)
+                | "typeof" ->
+                    if args.Length <> 1 then
+                        raise (RuntimeException("typeof(x) expects exactly one argument"))
+                    let! value = evalExpr scope args[0]
+                    return Value.Text(valueTypeName value)
                 | _ ->
                     match scope.TryGetFunction name with
                     | None -> raise (RuntimeException($"Function '{name}' not found"))
@@ -110,9 +148,44 @@ module Runtime =
                 let! value = evalExpr scope expr
                 scope.SetValue(name, value)
                 return None
+            | Statement.Set(name, op, expr) ->
+                let! value = evalExpr scope expr
+                match scope.TryGetValue name with
+                | None -> raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
+                | Some current ->
+                    let newValue =
+                        match op with
+                        | "=" ->
+                            ensureSameType current value
+                            value
+                        | "+=" ->
+                            match current, value with
+                            | Value.Text left, Value.Text right -> Value.Text(left + right)
+                            | _ -> Value.Number(asNumber current + asNumber value)
+                        | "-=" -> Value.Number(asNumber current - asNumber value)
+                        | "*=" -> Value.Number(asNumber current * asNumber value)
+                        | _ -> raise (RuntimeException($"Setter operator '{op}' is not supported"))
+                    if not (scope.TryUpdateValue(name, newValue)) then
+                        raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
+                    return None
+            | Statement.Shorten(name, op) ->
+                match scope.TryGetValue name with
+                | None -> raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
+                | Some current ->
+                    let delta = if op = "++" then 1.0 else -1.0
+                    let newValue = Value.Number(asNumber current + delta)
+                    if not (scope.TryUpdateValue(name, newValue)) then
+                        raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
+                    return None
+            | Statement.Use path ->
+                let source = System.IO.File.ReadAllText(path)
+                let cleaned = Preprocessor.removeCommentLines source
+                let program = cleaned |> Tokenizer.tokenize |> Parser.parse
+                let! _ = execBlock scope program.Statements
+                return None
             | Statement.Say expr ->
                 let! value = evalExpr scope expr
-                printfn "%A" value
+                printfn "%s" (valueToString value)
                 return None
             | Statement.Give expr ->
                 let! value = evalExpr scope expr

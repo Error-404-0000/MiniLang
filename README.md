@@ -2,6 +2,8 @@
 
 MiniLang is a small, token-based programming language I built completely from scratch. It's simple, but powerful enough to let you create real logic and functions with your own syntax. I wanted something light, clean, and understandable. Also catch runtime errors before execution and validation by using dummy scopes.
 
+> **F#-first implementation:** the `MiniLang.FSharp` folder now contains the primary, feature-parity implementation (tokenizer, parser, runtime, and tree debugger) along with CLI and tests. Use it for the current language behavior and development workflow.
+
 It uses scoped blocks, expressions, and is built on custom token parsing and runtime interpretation. It doesn't compile, it runs your code directly.
 
 --- 

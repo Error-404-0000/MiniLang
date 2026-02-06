@@ -4,12 +4,16 @@ A fresh F# reimplementation of MiniLang, created as a sub-repo style module insi
 
 ## Included language features
 
-- `make`, `say`, `give`, `if/else`, `while`, `fn`, `done`
+- `make`, `say`/`show`, `give`, `if/else`, `while`, `fn`, `done`
 - Arithmetic and comparison expressions
 - Function calls and scoped execution
+- Setter operators (`=`, `+=`, `-=`, `*=`) plus `++`/`--`
 - `future(expr)` to create async values
 - `await futureExpr` to resolve futures
 - Built-in `sleep(ms)` and `str(value)`
+- `use "path"` include statements
+- `typeof name` expression
+- `@@` comment lines (preprocessor)
 
 ## "More futures" additions
 
