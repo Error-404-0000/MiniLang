@@ -151,40 +151,44 @@ public static partial class Parser
     }
     private static List<Token> _group_token_object(List<Token> tokens)
     {
-        int startIndex;
-
-        while ((startIndex = tokens.FindIndex(x => x.TokenType == TokenType.ParenthesisOpen)) != -1)
-        {
-            int endIndex = FindMatchingClosingParenthesis(tokens, startIndex);
-
-            if (endIndex == -1)
-                throw new Exception("Unmatched opening parenthesis.");
-
-            var subTokens = tokens.Skip(startIndex + 1).Take(endIndex - startIndex - 1).ToList();
-
-            // Recursively process inner groups
-            var groupedSubTokens = _group_token_object(subTokens);
-
-            // Create the grouped token
-            var groupToken = new Token(TokenType.Group, TokenOperation.None, TokenTree.Group, groupedSubTokens);
-
-            // Replace the original tokens with the grouped token
-            tokens.RemoveRange(startIndex, endIndex - startIndex + 1);
-            tokens.Insert(startIndex, groupToken);
-        }
+        GroupNestedTokens(tokens, TokenType.ParenthesisOpen, TokenType.ParenthesisClose, TokenType.Group, "Unmatched opening parenthesis.");
+        GroupNestedTokens(tokens, TokenType.SquareBracketOpen, TokenType.SquareBracketClose, TokenType.Array, "Unmatched opening square bracket.");
 
         return tokens;
     }
 
+    private static void GroupNestedTokens(List<Token> tokens, TokenType openType, TokenType closeType, TokenType groupedType, string errorMessage)
+    {
+        int startIndex;
+
+        while ((startIndex = tokens.FindIndex(x => x.TokenType == openType)) != -1)
+        {
+            int endIndex = FindMatchingClosing(tokens, startIndex, openType, closeType);
+
+            if (endIndex == -1)
+                throw new Exception(errorMessage);
+
+            var subTokens = tokens.Skip(startIndex + 1).Take(endIndex - startIndex - 1).ToList();
+            var groupedSubTokens = _group_token_object(subTokens);
+            var groupToken = new Token(groupedType, TokenOperation.None, TokenTree.Group, groupedSubTokens);
+
+            tokens.RemoveRange(startIndex, endIndex - startIndex + 1);
+            tokens.Insert(startIndex, groupToken);
+        }
+    }
+
 
     private static int FindMatchingClosingParenthesis(List<Token> tokens, int openIndex)
+        => FindMatchingClosing(tokens, openIndex, TokenType.ParenthesisOpen, TokenType.ParenthesisClose);
+
+    private static int FindMatchingClosing(List<Token> tokens, int openIndex, TokenType openType, TokenType closeType)
     {
         int depth = 1;
         for (int i = openIndex + 1; i < tokens.Count; i++)
         {
-            if (tokens[i].TokenType == TokenType.ParenthesisOpen)
+            if (tokens[i].TokenType == openType)
                 depth++;
-            else if (tokens[i].TokenType == TokenType.ParenthesisClose)
+            else if (tokens[i].TokenType == closeType)
             {
                 depth--;
                 if (depth == 0)

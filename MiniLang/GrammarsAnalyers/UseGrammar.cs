@@ -8,6 +8,8 @@ using MiniLang.Tokenilzer;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 
@@ -60,15 +62,16 @@ namespace MiniLang.GrammarsAnalyers
             var path = pathToken.Value?.ToString();
             string resolvedPath = ResolvePathSmartly(path);
 
-            if (!File.Exists(path))
+            if (!File.Exists(resolvedPath))
                 throw new FileNotFoundException($"use error: file not found → \"{path}\"");
 
             string fileSource = File.ReadAllText(resolvedPath);
 
+            using var _ = UsePathContext.Push(resolvedPath);
             var tokensFromFile = Tokenizer.Tokenize(fileSource);
             var parsedTokens = Parser.Parser.Parse(tokensFromFile);
 
-           var Tokens =  grammarInterpreter.Interpret(parsedTokens,scopeObjectValueManager, FunctionDeclarationManager,expressionGrammarAnalyser); // builds the token from the source file
+            var Tokens = grammarInterpreter.Interpret(parsedTokens, scopeObjectValueManager, FunctionDeclarationManager, expressionGrammarAnalyser); // builds the token from the source file
 
             return new Token(TokenType.Keyword, TokenOperation.@use,TokenTree.Single, new UseSyntaxObject(path, Tokens));
         }
@@ -90,23 +93,83 @@ namespace MiniLang.GrammarsAnalyers
         }
         private string ResolvePathSmartly(string path)
         {
+            if (string.IsNullOrWhiteSpace(path))
+                return path;
+
+            var normalizedPath = path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+
             if (File.Exists(path))
                 return Path.GetFullPath(path);
 
-            string currentDirPath = Path.Combine(Environment.CurrentDirectory, path);
-            if (File.Exists(currentDirPath))
-                return Path.GetFullPath(currentDirPath);
+            foreach (var importerDirectory in UsePathContext.ImporterDirectories)
+            {
+                foreach (var candidate in EnumerateCandidatePaths(importerDirectory, normalizedPath, treatRootAsDirectory: true))
+                {
+                    if (File.Exists(candidate))
+                        return Path.GetFullPath(candidate);
+                }
+            }
 
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string assemblyDirPath = Path.Combine(baseDir, path);
-            if (File.Exists(assemblyDirPath))
-                return Path.GetFullPath(assemblyDirPath);
-
-            string includesDirPath = Path.Combine(baseDir, "includes", path);
-            if (File.Exists(includesDirPath))
-                return Path.GetFullPath(includesDirPath);
+            foreach (var root in EnumerateCandidateRoots())
+            {
+                foreach (var candidate in EnumerateCandidatePaths(root, normalizedPath, treatRootAsDirectory: false))
+                {
+                    if (File.Exists(candidate))
+                        return Path.GetFullPath(candidate);
+                }
+            }
 
             return path;
+        }
+
+        private static IEnumerable<string> EnumerateCandidateRoots()
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var start in new[]
+                     {
+                         Environment.CurrentDirectory,
+                         AppDomain.CurrentDomain.BaseDirectory
+                     }.Where(static value => !string.IsNullOrWhiteSpace(value)))
+            {
+                var current = new DirectoryInfo(start);
+                while (current is not null)
+                {
+                    if (seen.Add(current.FullName))
+                        yield return current.FullName;
+
+                    current = current.Parent;
+                }
+            }
+        }
+
+        private static IEnumerable<string> EnumerateCandidatePaths(string root, string relativePath, bool treatRootAsDirectory)
+        {
+            yield return Path.Combine(root, relativePath);
+
+            if (!treatRootAsDirectory)
+            {
+                yield return Path.Combine(root, "includes", relativePath);
+            }
+
+            if (!relativePath.StartsWith("MiniLangLibraries" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(relativePath, "MiniLangLibraries", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return Path.Combine(root, "MiniLangLibraries", relativePath);
+            }
+
+            if (!relativePath.StartsWith("MiniLangGuide" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(relativePath, "MiniLangGuide", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return Path.Combine(root, "MiniLangGuide", relativePath);
+                yield return Path.Combine(root, "MiniLangGuide", "MiniLang_Syntax_Guide", relativePath);
+            }
+
+            if (!relativePath.StartsWith("MiniLangProjects" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(relativePath, "MiniLangProjects", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return Path.Combine(root, "MiniLangProjects", relativePath);
+            }
         }
 
     }

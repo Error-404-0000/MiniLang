@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Collections;
 using MiniLang.Functions;
 namespace MiniLang.GrammarsAnalyers
 {
@@ -57,20 +58,21 @@ namespace MiniLang.GrammarsAnalyers
 
         public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line, Action<Token> PushToken)
         {
-            if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall || tokens[0].Value is  FunctionCallTokenObject func&&
-                FunctionDeclarationManager.Get(func.FunctionName,func.FunctionArgmentsCount) is  null)
+            if (tokens.Length > 1 || tokens[0].TokenType is not TokenType.FunctionCall)
             {
-
                 throw new Exception("Syntax error: incorrect function call syntax.");
             }
-            //if (tokens[0].Value is FunctionTokenObject func1)
-            ////foreach (var parm in func1.FunctionArgments)
-            ////{
-            ////        //if(!expressionGrammarAnalyser.IsValidExpression(parm.Argment.ToArray(), out string error))
-            ////        //{
-            ////        //    throw new Exception(error);
-            ////        //}
-            ////}
+
+            if (tokens[0].Value is not FunctionCallTokenObject func)
+            {
+                throw new Exception("Syntax error: incorrect function call syntax.");
+            }
+
+            if (!CollectionBuiltins.Exists(func.FunctionName) && !FunctionDeclarationManager.Exists(func.FunctionName, func.FunctionArgmentsCount))
+            {
+                throw new Exception("Syntax error: incorrect function call syntax.");
+            }
+
             return tokens[0];//it's is already a FunctionTokenObject
         }
     }

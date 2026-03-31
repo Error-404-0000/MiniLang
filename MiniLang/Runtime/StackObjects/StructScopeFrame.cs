@@ -100,8 +100,9 @@ namespace MiniLang.Runtime.StackObjects
                                 null)
                             )
                     ],
-                    OnFunctionOpened,
-                    null)
+                    declaredTypeName: null,
+                    onFunctionOpen: OnFunctionOpened,
+                    onFunctionClose: null)
                 );
 
             return new RuntimeFunction(FunctionName, 0, func); ;

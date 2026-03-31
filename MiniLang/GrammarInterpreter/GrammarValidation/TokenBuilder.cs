@@ -1,4 +1,6 @@
-﻿using MiniLang.Functions;
+using MiniLang.Functions;
+using MiniLang.SyntaxObjects.Csharp;
+using MiniLang.SyntaxObjects.Collections;
 using MiniLang.TokenObjects;
 
 namespace MiniLang.GrammarInterpreter
@@ -14,8 +16,44 @@ namespace MiniLang.GrammarInterpreter
             {
                 Token current = tokens[i];
 
-                // Function call detection: Identifier followed by Group (i.e., (...))
-                if (current.TokenType == TokenType.Identifier && i + 1 < tokens.Count && tokens[i + 1].TokenTree == TokenTree.Group && tokens[i + 1].Value is List<Token> group)
+                if (current.TokenType == TokenType.CSharp
+                    && i + 3 < tokens.Count
+                    && tokens[i + 1].TokenType == TokenType.Identifier
+                    && tokens[i + 2].TokenType == TokenType.Identifier
+                    && tokens[i + 3].TokenTree == TokenTree.Group
+                    && tokens[i + 3].Value is List<Token> interopGroup)
+                {
+                    var resolvedArgs = new List<FunctionArgments>();
+                    var args = SplitArguments(interopGroup);
+
+                    foreach (var (arg, index) in args.Select((arg, idx) => (arg, idx)))
+                    {
+                        resolvedArgs.Add(new FunctionArgments(BuildStructuredTokens(arg), index));
+                    }
+
+                    var namespaceToken = tokens[i + 1].Value.ToString()!;
+                    if (current.TokenOperation == TokenOperation.Win && !namespaceToken.StartsWith("win.", StringComparison.Ordinal))
+                    {
+                        namespaceToken = $"win.{namespaceToken}";
+                    }
+
+                    groupedTokens.Add(new Token(
+                        TokenType.CSharp,
+                        current.TokenOperation,
+                        TokenTree.Single,
+                        new CSharpCallSyntaxObject(
+                            namespaceToken,
+                            new FunctionCallTokenObject(
+                                tokens[i + 2].Value.ToString()!,
+                                resolvedArgs.Count,
+                                resolvedArgs),
+                            current.TokenOperation)));
+
+                    i += 4;
+                    continue;
+                }
+
+                if (current.TokenType == TokenType.Identifier && i + 1 < tokens.Count && tokens[i + 1].TokenType == TokenType.Group && tokens[i + 1].TokenTree == TokenTree.Group && tokens[i + 1].Value is List<Token> group)
                 {
                     var resolvedArgs = new List<FunctionArgments>();
                     var args = SplitArguments(group);
@@ -32,12 +70,66 @@ namespace MiniLang.GrammarInterpreter
                         resolvedArgs
                     );
 
-                    groupedTokens.Add(new Token(TokenType.FunctionCall, TokenOperation.None, TokenTree.Single, functionToken));
-                    i += 2; // Skip identifier and group
+                    Token builtToken = new(TokenType.FunctionCall, TokenOperation.None, TokenTree.Single, functionToken);
+                    if (i + 2 < tokens.Count && tokens[i + 2].TokenType == TokenType.Array && tokens[i + 2].TokenTree == TokenTree.Group && tokens[i + 2].Value is List<Token> functionIndexGroup)
+                    {
+                        var indexExpressions = SplitArguments(functionIndexGroup);
+                        if (indexExpressions.Count != 1)
+                        {
+                            throw new Exception("Array index access requires exactly one index expression.");
+                        }
+
+                        builtToken = new Token(
+                            TokenType.Array,
+                            TokenOperation.IndexAccess,
+                            TokenTree.Single,
+                            new ArrayAccessSyntaxObject(builtToken, BuildStructuredTokens(indexExpressions[0])));
+
+                        i += 3;
+                        groupedTokens.Add(builtToken);
+                        continue;
+                    }
+
+                    groupedTokens.Add(builtToken);
+                    i += 2;
                     continue;
                 }
 
-                // Group { ... } scope blocks
+                if (IsIndexableToken(current) && i + 1 < tokens.Count && tokens[i + 1].TokenType == TokenType.Array && tokens[i + 1].TokenTree == TokenTree.Group && tokens[i + 1].Value is List<Token> indexGroup)
+                {
+                    var indexExpressions = SplitArguments(indexGroup);
+                    if (indexExpressions.Count != 1)
+                    {
+                        throw new Exception("Array index access requires exactly one index expression.");
+                    }
+
+                    groupedTokens.Add(new Token(
+                        TokenType.Array,
+                        TokenOperation.IndexAccess,
+                        TokenTree.Single,
+                        new ArrayAccessSyntaxObject(current, BuildStructuredTokens(indexExpressions[0]))));
+
+                    i += 2;
+                    continue;
+                }
+
+                if (current.TokenType == TokenType.Array && current.TokenTree == TokenTree.Group && current.Value is List<Token> arrayGroup)
+                {
+                    var elements = SplitArguments(arrayGroup)
+                        .Select(BuildStructuredTokens)
+                        .Select(static item => (IReadOnlyList<Token>)item)
+                        .ToArray();
+
+                    groupedTokens.Add(new Token(
+                        TokenType.Array,
+                        TokenOperation.None,
+                        TokenTree.Single,
+                        new ArrayLiteralSyntaxObject(elements)));
+
+                    i++;
+                    continue;
+                }
+
                 if (current.TokenType == TokenType.CurlybracketStart)
                 {
                     int end = FindCurlyScopeEnd(tokens, i);
@@ -50,8 +142,6 @@ namespace MiniLang.GrammarInterpreter
                     i = end + 1;
                     continue;
                 }
-
-                // 'then' starts a scope, everything until the matching 'done' ends the scope
                 else if (current.TokenType == TokenType.Then)
                 {
                     int j = i + 1;
@@ -122,5 +212,9 @@ namespace MiniLang.GrammarInterpreter
 
             return args;
         }
+
+        private static bool IsIndexableToken(Token token) =>
+            token.TokenType is TokenType.Identifier or TokenType.FunctionCall ||
+            (token.TokenType == TokenType.Array && token.Value is ArrayAccessSyntaxObject);
     }
 }

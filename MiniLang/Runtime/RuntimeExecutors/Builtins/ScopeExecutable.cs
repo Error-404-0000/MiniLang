@@ -22,7 +22,11 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
             }
             context.PushScope();
             context.PushFunctionTable();
+            context.PushStructTable();
+            context.PushEnumTable();
             var @excute =   context.RuntimeEngine.Execute(tl.ToList());
+            context.PopEnumTable();
+            context.PopStructTable();
             context.PopScope();
             context.PopFunctionTable();
             context.ReturnedHandled();

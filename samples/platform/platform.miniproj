@@ -1,0 +1,17 @@
+{
+  "name": "MiniLang.Platform.Sample",
+  "target": "windows-x64",
+  "sources": [
+    "platform.mini"
+  ],
+  "references": [],
+  "packageSources": [],
+  "defines": [
+    "MINILANG_SAMPLE"
+  ],
+  "outputKind": "library",
+  "interop": {
+    "allowUserModeWin32": true,
+    "allowDotNetBridge": true
+  }
+}

@@ -12,6 +12,7 @@ namespace MiniLang.Runtime.RuntimeObjectStack
     {
         public RuntimeScopeFrame RuntimeScopeFrame { get; set; }
         public RuntimeStructScopeFrame StructFrame { get; set; }
+        public RuntimeEnumScopeFrame EnumFrame { get; set; }
         public RuntimeFunctionTable FunctionTable { get; set; }
         public ReturnObject ReturnValueHolder { get; set; }
         public ExecutableTokenDispatcher ExecutableTokenDispatcher { get; }
@@ -62,6 +63,19 @@ namespace MiniLang.Runtime.RuntimeObjectStack
                 throw new InvalidOperationException("Cannot pop the global struct table.");
             StructFrame = StructFrame.Parent;
         }
+
+        public void PushEnumTable()
+        {
+            var child = new RuntimeEnumScopeFrame { Parent = EnumFrame };
+            EnumFrame = child;
+        }
+
+        public void PopEnumTable()
+        {
+            if (EnumFrame?.Parent == null)
+                throw new InvalidOperationException("Cannot pop the global enum table.");
+            EnumFrame = EnumFrame.Parent;
+        }
         public void ReturnedHandled()
         {
             ReturnValueHolder = null;
@@ -71,12 +85,14 @@ namespace MiniLang.Runtime.RuntimeObjectStack
             PushFunctionTable();
             PushScope();
             PushStructTable();
+            PushEnumTable();
         }
         public void EndScope()
         {
             PopScope();
             PopFunctionTable();
             PopStructTable();
+            PopEnumTable();
             ReturnedHandled();
         }
         public void SetReturn(TokenType returnType, TokenOperation returnOperator, object? value)

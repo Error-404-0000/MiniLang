@@ -1,41 +1,22 @@
-﻿using MiniLang.Attributes.GrammarAttribute;
+using MiniLang.Attributes.GrammarAttribute;
 using MiniLang.Interfaces;
 using MiniLang.GrammarInterpreter;
 using MiniLang.GrammarInterpreter.GrammarDummyScopes;
 using MiniLang.GrammarInterpreter.GrammarValidation;
 using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.SyntaxObjects.Collections;
 using MiniLang.TokenObjects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace MiniLang.GrammarsAnalyers
 {
-    /// <summary>
-    /// Represents the grammar for analyzing and processing setter operations in a tokenized syntax.
-    /// </summary>
-    /// <remarks>This class provides functionality to validate, interpret, and build syntax nodes for setter
-    /// operations. Setter operations are defined as assignments or modifications to identifiers using specific
-    /// operators.</remarks>
-    /// 
-    /// <example>
-    /// 
-    ///         x = 2;
-    ///         y += 3;
-    ///         k = 5 + 2;
-    ///         l = 10 - 3;
-    ///         y = 5 + 2 * 3;
-    /// </example>
     [TriggerTokenType(TriggerType.Type)]
     public class SetterGrammar : IGrammarAnalyser, IDebugger
     {
         public string GrammarName => "setter operation";
 
-        public TokenOperation[] TriggerTokensOperator => [   TokenOperation.SETTER,
-            TokenOperation.SETTERAddOperation,
-            TokenOperation.SETTERSubtractOperation];
-        public TokenType[] TriggerTokenTypes => [TokenType.Identifier, TokenType.SETTERS];
+        public TokenOperation[] TriggerTokensOperator => [TokenOperation.SETTER, TokenOperation.SETTERAddOperation, TokenOperation.SETTERSubtractOperation];
+        public TokenType[] TriggerTokenTypes => [TokenType.Identifier, TokenType.Array];
 
         public bool RequiresTermination => true;
 
@@ -47,13 +28,13 @@ namespace MiniLang.GrammarsAnalyers
 
             if (tokens.Length < 3)
             {
-                errorMessage = "Setter syntax must follow: <identifier> <operator> <expression>";
+                errorMessage = "Setter syntax must follow: <target> <operator> <expression>";
                 return true;
             }
 
-            if (tokens[0].TokenType != TokenType.Identifier)
+            if (!IsValidTarget(tokens[0]))
             {
-                errorMessage = "Expected identifier as left-hand side of setter.";
+                errorMessage = "Expected identifier or array index as left-hand side of setter.";
                 return true;
             }
 
@@ -74,9 +55,9 @@ namespace MiniLang.GrammarsAnalyers
             IGrammarInterpreter grammarInterpreter,
             int line, Action<Token> PushToken)
         {
-            string identifier = tokens[0].Value?.ToString();
+            var target = tokens[0];
 
-            SetterOperator op = tokens[1].TokenOperation switch
+            var op = tokens[1].TokenOperation switch
             {
                 TokenOperation.SETTER => SetterOperator.SETTER,
                 TokenOperation.SETTERAddOperation => SetterOperator.SETTERAddOperation,
@@ -84,31 +65,34 @@ namespace MiniLang.GrammarsAnalyers
                 _ => throw new Exception($"unexpect setter operator '{tokens[1].TokenOperation}'.")
             };
 
-            var expression = tokens[2..]; // all tokens after operator
-            if (tokens.Length > 3 && !expressionGrammarAnalyser.IsValidExpression(tokens[3..(tokens.Length)], out string errorMessage))
+            var expression = tokens[2..];
+            if (!expressionGrammarAnalyser.IsValidExpression(expression, out var errorMessage))
             {
                 throw new Exception(errorMessage);
             }
-            // Register as assigned in scope
-            scopeObjectValueManager.MarkAssigned(identifier);
 
-            var setterObj = new SetterSyntaxObject(identifier, op, expression);
+            if (target.TokenType == TokenType.Identifier)
+            {
+                scopeObjectValueManager.MarkAssigned(target.Value?.ToString() ?? string.Empty);
+            }
 
+            var setterObj = new SetterSyntaxObject(target, op, expression);
             return new Token(TokenType.SETTERS, tokens[1].TokenOperation, TokenTree.Single, setterObj);
         }
 
         public string ViewSelf(Token Token, GrammarValidator grammarValidator = null, int indentLevel = 0)
         {
             if (Token.Value is not SetterSyntaxObject setter)
+            {
                 return string.Empty;
+            }
 
             var indent = string.Join("", Enumerable.Repeat("    ", indentLevel));
             var builder = new StringBuilder();
 
             builder.AppendLine($"{indent}└── [SetterStatement]");
-            builder.AppendLine($"{indent}    ├── [Identifier -> {setter.Identifier}]");
+            builder.AppendLine($"{indent}    ├── [Target -> {setter.Target.Value}]");
             builder.AppendLine($"{indent}    ├── [SetterOperator -> {setter.SetterOperator}]");
-
             builder.AppendLine($"{indent}    └── [Expression]");
             foreach (var token in setter.Expression)
             {
@@ -118,6 +102,9 @@ namespace MiniLang.GrammarsAnalyers
             return builder.ToString();
         }
 
+        private static bool IsValidTarget(Token token) =>
+            token.TokenType == TokenType.Identifier ||
+            (token.TokenType == TokenType.Array && token.Value is ArrayAccessSyntaxObject);
     }
 
     public enum SetterOperator
@@ -127,5 +114,5 @@ namespace MiniLang.GrammarsAnalyers
         SETTERSubtractOperation
     }
 
-    public record SetterSyntaxObject(string Identifier, SetterOperator SetterOperator, IEnumerable<Token> Expression);
+    public record SetterSyntaxObject(Token Target, SetterOperator SetterOperator, IEnumerable<Token> Expression);
 }

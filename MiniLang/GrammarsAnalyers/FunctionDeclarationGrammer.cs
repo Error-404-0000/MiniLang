@@ -8,6 +8,7 @@ using MiniLang.SyntaxObjects.FunctionBuilder;
 using MiniLang.TokenObjects;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace MiniLang.GrammarsAnalyers
@@ -58,7 +59,7 @@ namespace MiniLang.GrammarsAnalyers
                 errorMessage = "Syntax error: function declaration must follow the form 'fn <return type> <Function> <Body>'.";
                 return true;
             }
-            if (tokens[1].TokenType is not TokenType.ReturnType)
+            if (tokens[1].TokenType is not (TokenType.ReturnType or TokenType.Identifier))
             {
                 errorMessage = "Syntax error: 'fn' requires a return type.";
                 return true;
@@ -90,8 +91,7 @@ namespace MiniLang.GrammarsAnalyers
             {
                 // Check that all function arguments are identifiers
                 var invalidArg = funcToken.FunctionArgments
-                    .FirstOrDefault(arg =>
-                        arg.Argment.FirstOrDefault(token => token.TokenType != TokenType.Identifier) != null);
+                    .FirstOrDefault(arg => !TryGetArgument(arg, out _, out _));
 
                 if (invalidArg != null)
                 {
@@ -99,28 +99,49 @@ namespace MiniLang.GrammarsAnalyers
                 }
                 FunctionDeclarationScopeManager  FunctionBodyScope = new FunctionDeclarationScopeManager();//creating a new scope
                 FunctionBodyScope.ParentScope = FunctionDeclarationManager;
+                var declaredTypeName = tokens[1].TokenType == TokenType.Identifier ? tokens[1].Value?.ToString() : null;
+                var declaredReturnOperation = tokens[1].TokenOperation;
                 var func = new FunctionDeclarationSyntaxObject(
                         funcToken.FunctionName,
                         funcToken.FunctionArgmentsCount,
-                        tokens[1].TokenOperation,
+                        declaredReturnOperation,
                         funcToken.FunctionArgments,
-                       null
+                       null,
+                       declaredTypeName
                 );
                 if(FunctionDeclarationManager.Exists(func.FunctionName, funcToken.FunctionArgmentsCount))
                 {
                     throw new InvalidOperationException($"Syntax error: function signature was already declared. {func.FunctionName}");
 
                 }
+                if (declaredTypeName is not null && !scopeObjectValueManager.Exists(declaredTypeName))
+                {
+                    throw new InvalidOperationException($"Syntax error: return type '{declaredTypeName}' is not declared.");
+                }
+                if (declaredTypeName is not null)
+                {
+                    declaredReturnOperation = scopeObjectValueManager.GetTypeOf(declaredTypeName) switch
+                    {
+                        TokenType.Enum => TokenOperation.Enum,
+                        TokenType.Struct => TokenOperation.ReturnsObject,
+                        _ => throw new InvalidOperationException($"Syntax error: return type '{declaredTypeName}' is not supported.")
+                    };
+                }
                 ScopeObjectValueManager SubScope = new ScopeObjectValueManager();
                 SubScope.Parent = scopeObjectValueManager;
                 //setting up the args Name(args..<-these)
                 foreach (var arg in func.FunctionArgments)
                 {
+                    if (!TryGetArgument(arg, out var argumentName, out var declaredArgumentType))
+                    {
+                        throw new InvalidOperationException("Syntax error: function arg was unparseable.");
+                    }
+
                     SubScope.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
                     {
-                        Identifier = arg.Argment.ToArray()[0].Value.ToString()??throw new Exception("Syntax error: function arg was unparseable."),
+                        Identifier = argumentName,
                         IsAssigned = true,
-                        TokenType = TokenType.Identifier,
+                        TokenType = declaredArgumentType ?? TokenType.Identifier,
                     });
                 }
                 FunctionDeclarationManager.Add(func);
@@ -132,9 +153,10 @@ namespace MiniLang.GrammarsAnalyers
                 FunctionDeclarationManager.Add(func = new FunctionDeclarationSyntaxObject(
                         funcToken.FunctionName,
                         funcToken.FunctionArgmentsCount,
-                        tokens[1].TokenOperation,
+                        declaredReturnOperation,
                         funcToken.FunctionArgments,
-                        Body
+                        Body,
+                        declaredTypeName
                 ));
 
                 return new Token(
@@ -147,5 +169,52 @@ namespace MiniLang.GrammarsAnalyers
 
             throw new InvalidOperationException($"Invalid function token object at line {line}. Expected FunctionTokenObject but got {tokens[1].Value?.GetType().Name ?? "null"}.");
         }
+
+        private static bool TryGetArgument(FunctionArgments argument, out string argumentName, out TokenType? declaredType)
+        {
+            argumentName = string.Empty;
+            declaredType = null;
+            var parts = argument.Argment.ToArray();
+            if (parts.Length is < 1 or > 2)
+            {
+                return false;
+            }
+
+            if (parts.Length == 1)
+            {
+                if (parts[0].TokenType != TokenType.Identifier)
+                {
+                    return false;
+                }
+
+                argumentName = parts[0].Value?.ToString() ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(argumentName);
+            }
+
+            if (parts[1].TokenType != TokenType.Identifier)
+            {
+                return false;
+            }
+
+            argumentName = parts[1].Value?.ToString() ?? string.Empty;
+            declaredType = ResolveDeclaredType(parts[0]);
+            return !string.IsNullOrWhiteSpace(argumentName);
+        }
+
+        private static TokenType? ResolveDeclaredType(Token token) =>
+            token.TokenType switch
+            {
+                TokenType.ReturnType => token.TokenOperation switch
+                {
+                    TokenOperation.ReturnsNumber => TokenType.Number,
+                    TokenOperation.ReturnsString => TokenType.StringLiteralExpression,
+                    TokenOperation.ReturnsObject => TokenType.Object,
+                    TokenOperation.ReturnsArray => TokenType.Array,
+                    TokenOperation.ReturnsNothing => null,
+                    _ => null
+                },
+                TokenType.Identifier => TokenType.Identifier,
+                _ => null
+            };
     }
 }

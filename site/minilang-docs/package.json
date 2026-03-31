@@ -1,0 +1,23 @@
+{
+  "name": "minilang-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run lint:content && next build",
+    "start": "next start",
+    "lint:content": "node ./scripts/lint-docs.mjs"
+  },
+  "dependencies": {
+    "next": "16.2.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.14",
+    "@types/react": "19.0.12",
+    "@types/react-dom": "19.0.5",
+    "typescript": "5.8.2"
+  }
+}

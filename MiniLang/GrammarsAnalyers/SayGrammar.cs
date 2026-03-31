@@ -51,14 +51,12 @@ namespace MiniLang.GrammarsAnalyers
                 return true;
             }
 
-            if (tokens[1].TokenType != TokenType.StringLiteralExpression &&
-                tokens[1].TokenType != TokenType.Identifier && tokens[1].TokenType!=TokenType.Expression)
+            if (tokens[1].TokenType == TokenType.Semicolon)
             {
-                errorMessage = $"[SayGrammar] Argument to 'say' must be a string or identifier, found: {tokens[1].TokenType}.";
+                errorMessage = "[SayGrammar] Argument to 'say' cannot be empty.";
                 return true;
             }
 
-          
             return false; // No error
         }
 
@@ -73,6 +71,11 @@ namespace MiniLang.GrammarsAnalyers
             var args = tokens.Skip(1)
                              .TakeWhile(t => t.TokenType != TokenType.Semicolon)
                              .ToList();
+
+            if (!expressionGrammarAnalyser.IsValidExpression(args.ToArray(), out var errorMessage))
+            {
+                throw new Exception(errorMessage);
+            }
 
             var function = new SayFunctionSyntaxObject
             {

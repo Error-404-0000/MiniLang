@@ -3,6 +3,8 @@ using MiniLang.GrammarInterpreter;
 using MiniLang.GrammarInterpreter.GrammarDummyScopes;
 using MiniLang.GrammarInterpreter.GrammarValidation;
 using MiniLang.GrammarInterpreter.GrammerdummyScopes.MiniLang.Functions;
+using MiniLang.Collections;
+using MiniLang.Functions;
 using MiniLang.SyntaxObjects.Make;
 using MiniLang.TokenObjects;
 using System;
@@ -80,9 +82,10 @@ namespace MiniLang.GrammarsAnalyers
             string identifier = (string)tokens[1].Value;
             //FunctionTokenObject valueToken = tokens[2..^1];
             
+            var declaredType = ResolveDeclaredType(tokens[3..tokens.Length], objectValueManager, FunctionDeclarationManager);
             objectValueManager.Add(new GrammarInterpreter.GrammerdummyScopes.ScopeObjectValue()
             {
-                TokenType = tokens.Length - 3 > 2 ? TokenType.Expression : tokens[3].TokenType,
+                TokenType = declaredType,
                 Identifier=identifier,
                 IsAssigned = tokens.Length<3? true:false,//make obj; means value is not set and make obj =...;
             });
@@ -139,6 +142,57 @@ namespace MiniLang.GrammarsAnalyers
                 }
             }
             return string.Empty;
+        }
+
+        private static TokenType ResolveDeclaredType(Token[] expressionTokens, ScopeObjectValueManager objectValueManager, FunctionDeclarationScopeManager functionDeclarationManager)
+        {
+            if (expressionTokens.Length == 0)
+            {
+                return TokenType.None;
+            }
+
+            if (expressionTokens.Length > 1)
+            {
+                return TokenType.Expression;
+            }
+
+            var token = expressionTokens[0];
+            return token.TokenType switch
+            {
+                TokenType.Identifier when objectValueManager.Exists(token.Value?.ToString() ?? string.Empty)
+                    => objectValueManager.GetTypeOf(token.Value?.ToString() ?? string.Empty),
+                TokenType.FunctionCall when token.Value is FunctionCallTokenObject functionCall
+                    => ResolveFunctionCallType(functionCall, functionDeclarationManager),
+                _ => token.TokenType
+            };
+        }
+
+        private static TokenType ResolveFunctionCallType(FunctionCallTokenObject functionCall, FunctionDeclarationScopeManager functionDeclarationManager)
+        {
+            if (CollectionBuiltins.TryGetReturnType(functionCall.FunctionName, out var builtinReturnType, out var returnsNothing))
+            {
+                return returnsNothing ? TokenType.ReturnType : builtinReturnType;
+            }
+
+            if (!functionDeclarationManager.Exists(functionCall.FunctionName, functionCall.FunctionArgmentsCount))
+            {
+                return TokenType.FunctionCall;
+            }
+
+            if (functionDeclarationManager.Get(functionCall.FunctionName, functionCall.FunctionArgmentsCount) is not MiniLang.SyntaxObjects.FunctionBuilder.FunctionDeclarationSyntaxObject declaration)
+            {
+                return TokenType.FunctionCall;
+            }
+
+            return declaration.ReturnType switch
+            {
+                TokenOperation.ReturnsNumber => TokenType.Number,
+                TokenOperation.ReturnsString => TokenType.StringLiteralExpression,
+                TokenOperation.ReturnsObject => TokenType.Object,
+                TokenOperation.ReturnsArray => TokenType.Array,
+                TokenOperation.Enum => TokenType.Enum,
+                _ => TokenType.FunctionCall
+            };
         }
     }
 }

@@ -73,6 +73,12 @@ namespace MiniLang.GrammarInterpreter.GrammarDummyScopes
 
         private ScopeObjectValue? FindScopeWith(string identifier)
         {
+            var exact = _scopes.FirstOrDefault(x => x.Identifier == identifier);
+            if (exact != null)
+            {
+                return exact;
+            }
+
             if (_is_in_struct)
             {
                 var IfFieldName = (_is_in_struct ? $"_field_" : null) + identifier;

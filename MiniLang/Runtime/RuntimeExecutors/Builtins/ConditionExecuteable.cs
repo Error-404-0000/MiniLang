@@ -44,10 +44,12 @@ namespace MiniLang.Runtime.RuntimeExecutors.Builtins
                 throw new InvalidOperationException($"runtime exception: Token value is not a valid ConditionSyntaxObject: {Token.Value}");
             }
             var expression_result = context.RuntimeExpressionEvaluator.Evaluate(cso.Expression.ToList());
+        
             if (expression_result.Type is not TokenType.Number)
             {
-                throw new InvalidOperationException($"runtime exception: Condition expression must evaluate to a number, but got: {expression_result.Type}");
+                throw new InvalidOperationException($"runtime exception: Condition expression must evaluate to a number,string, object but got: {expression_result.Type}");
             }
+           
             if ( !Double.TryParse(expression_result.Value.ToString(),out double result))
             {
                 throw new InvalidOperationException($"runtime exception: Condition expression must evaluate to a number, but got: {expression_result.Value}");

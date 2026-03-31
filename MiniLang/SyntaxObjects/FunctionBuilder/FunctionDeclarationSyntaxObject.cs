@@ -10,13 +10,15 @@ namespace MiniLang.SyntaxObjects.FunctionBuilder
     {
         public IEnumerable<Token> Body { get;  }
         public TokenOperation ReturnType {  get; }
+        public string? DeclaredTypeName { get; }
         public FunctionDeclarationSyntaxObject(string functionName, int functionArgmentsCount, TokenOperation returnType, IEnumerable<FunctionArgments> functionArgments,
-           IEnumerable<Token> Body, OnFunctionOpen? onFunctionOpen = null,OnFunctionClose? onFunctionClose = null) :
+           IEnumerable<Token> Body, string? declaredTypeName = null, OnFunctionOpen? onFunctionOpen = null,OnFunctionClose? onFunctionClose = null) :
             base(functionName, functionArgmentsCount, functionArgments, onFunctionOpen, onFunctionClose)
         {
 
             this.Body = Body;
             ReturnType = returnType;
+            DeclaredTypeName = declaredTypeName;
         }
     }
 }

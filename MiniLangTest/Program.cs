@@ -1,116 +1,97 @@
-﻿
-#define DebugMode1
-using MiniLang.Debugger;
-using MiniLang.GrammarsAnalyers;
-using MiniLang.Interfaces;
-using MiniLang.GrammarInterpreter;
-using MiniLang.Parser;
-using MiniLang.SyntaxObjects;
-using MiniLang.Tokenilzer;
-using MiniLang.TokenObjects;
-using MiniLang.Runtime.Execution;
-using MiniLang.Runtime.Executor;
-using MiniLang.Runtime.RuntimeExecutors.Singles;
-using MiniLang.Runtime.RuntimeObjectStack;
-using MiniLang.Runtime.RuntimeExecutors.Builtins;
-using MiniLang.GrammarsAnalyers.StructDeclaration;
-using MiniLang.Runtime.RuntimeExecutors.Builtins.Struct;
-using MiniLang.GrammarAnalyzers;
+using System.Text.Json;
+using MiniLang.Hosting;
 
-class MiniLangRuntime
+internal static class MiniLangRuntime
 {
-    public static void Main(string[] args)
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        args = [null];
-        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLang_Syntax_Guide\ClassCreation.mini.c";
-        if (args.Length == 0)
+        WriteIndented = false
+    };
+
+    public static int Main(string[] args)
+    {
+        args = ["run", @"C:\Users\Demon\source\repos\MiniLang\MiniLangProjects\Workspace\App\StartupApp.mini.c"];
+        if (args.Length < 2)
         {
-            Console.WriteLine("Usage: MiniLangRuntime <script-file>");
-            return;
+            Console.WriteLine("Usage: MiniLangCLI <check|check-json|run|run-json|inspect-json> <script-file>");
+            return 1;
         }
 
-        string filePath = args[0];
+        var command = args[0];
+        var filePath = Path.GetFullPath(args[1]);
         if (!File.Exists(filePath))
         {
-            Console.WriteLine($"Script file not found: {filePath}");
-            return;
+            Console.Error.WriteLine($"Script file not found: {filePath}");
+            return 1;
         }
 
-        string sourceCode = File.ReadAllText(filePath);
-        string cleanedCode = MiniLangPreprocessor.RemoveCommentLines(sourceCode);
-        try
+        var sourceCode = File.ReadAllText(filePath);
+
+        return command switch
         {
-            RunScript(cleanedCode);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Runtime Error]: {ex.Message}");
-        }
+            "check" => WriteCheck(filePath, sourceCode, json: false),
+            "check-json" => WriteCheck(filePath, sourceCode, json: true),
+            "run" => WriteRun(filePath, sourceCode, json: false),
+            "run-json" => WriteRun(filePath, sourceCode, json: true),
+            "inspect-json" => WriteInspect(filePath, sourceCode),
+            _ => UnknownCommand(command)
+        };
     }
 
-  
-    public static void RunScript(string code)
+    private static int WriteCheck(string filePath, string sourceCode, bool json)
     {
-        var tokens = Tokenizer.Tokenize(code);
-
-        var parsedTokens = Parser.Parse(tokens);
-
-#if DebugMode
-        foreach (var token in parsedTokens)
+        var result = LegacyMiniLangHost.AnalyzeSource(sourceCode, filePath);
+        if (json)
         {
-            token.Print();
+            Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
         }
-#endif
+        else if (result.Success)
+        {
+            Console.WriteLine("Check succeeded.");
+        }
+        else
+        {
+            foreach (var diagnostic in result.Diagnostics)
+            {
+                Console.WriteLine($"{diagnostic.Severity} {diagnostic.Id} ({diagnostic.Line},{diagnostic.Column}): {diagnostic.Message}");
+            }
+        }
 
+        return result.Success ? 0 : 1;
+    }
 
-#if !DebugMode
+    private static int WriteRun(string filePath, string sourceCode, bool json)
+    {
+        var result = LegacyMiniLangHost.RunSource(sourceCode, filePath);
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+        }
+        else if (result.Success)
+        {
+            Console.Write(result.Output);
+        }
+        else
+        {
+            foreach (var diagnostic in result.Diagnostics)
+            {
+                Console.WriteLine($"{diagnostic.Severity} {diagnostic.Id} ({diagnostic.Line},{diagnostic.Column}): {diagnostic.Message}");
+            }
+        }
 
-        var grammarValidator = new GrammarValidator([
-            new MakeGrammar(), new ConditionGrammar(), new SayGrammar(), new TypeofGrammar(), new UseGrammar(),
-            new SetterGrammar(), new FunctionDeclarationGrammar(), new FunctionCallsGrammar(),
-            new StandaloneExpressionGrammar(), new ScopeGrammar(), new GiveGrammar(), new WhileGrammar(),
-            new StructGrammer(), new FieldDeclarationGrammer(),new CSharpGrammer(),
-            new ShortenOperatorGrammar()
-        ]);
-        // Interpret Grammar
-        var grammarInterpreter = new GrammarInterpreter(grammarValidator, parsedTokens);
-        var interpreted = grammarInterpreter.Interpret();
-        interpreted = grammarInterpreter.InjectUse(interpreted);
-       
+        return result.Success ? 0 : 1;
+    }
 
-        // Dispatcher setup
-        var dispatcher = new ExecutableTokenDispatcher([
-            new NumberLiteralExecutable(),
-            new StringInterpolatedExecutable(),
-            new MakeExecutable(),
-            new SayExecutable(),
-            new ScopeExecutable(),
-            new FunctionCallExecution(),
-            new FunctionBuilderExecuteable(),
-            new GiveExacuteable(),
-            new ConditionExecuteable(),
-            new WhileExecuteable(),
-            new SetterExecutable(),
-            new StructExecteable(),
-            new StandaloneExecteable()
-            
-        ]);
+    private static int WriteInspect(string filePath, string sourceCode)
+    {
+        var result = LegacyMiniLangHost.AnalyzeSource(sourceCode, filePath);
+        Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+        return result.Success ? 0 : 1;
+    }
 
-        //  Context
-        var context = new RuntimeContext(dispatcher);
-        context.PushScope();
-        context.PushFunctionTable();
-        context.PushStructTable();
-        context.RuntimeScopeFrame.Declare(new MiniLang.Runtime.StackObjects.StackFrame.RuntimeVariable(
-            "true", TokenType.Number, new MiniLang.Runtime.StackObjects.StackFrame.RuntimeValue(TokenType.Number, TokenOperation.None, 1)
-        ));
-
-        context.RuntimeScopeFrame.Declare(new MiniLang.Runtime.StackObjects.StackFrame.RuntimeVariable(
-            "false", TokenType.Number, new MiniLang.Runtime.StackObjects.StackFrame.RuntimeValue(TokenType.Number, TokenOperation.None, 0)
-        ));
-
-        var runtime = new RuntimeEngine(dispatcher, context);
-        runtime.Execute(interpreted.ToList());
-#endif
+    private static int UnknownCommand(string command)
+    {
+        Console.Error.WriteLine($"Unknown command '{command}'.");
+        return 1;
     }
 }

@@ -1,0 +1,132 @@
+module.exports=[71306,(a,b,c)=>{b.exports=a.r(18622)},79847,a=>{a.n(a.i(3343))},9185,a=>{a.n(a.i(29432))},72842,a=>{a.n(a.i(75164))},54897,a=>{a.n(a.i(30106))},56157,a=>{a.n(a.i(18970))},94331,a=>{a.n(a.i(60644))},15988,a=>{a.n(a.i(56952))},25766,a=>{a.n(a.i(77341))},29725,a=>{a.n(a.i(94290))},5785,a=>{a.n(a.i(90588))},74793,a=>{a.n(a.i(33169))},85826,a=>{a.n(a.i(37111))},21565,a=>{a.n(a.i(41763))},65911,a=>{a.n(a.i(8950))},25128,a=>{a.n(a.i(91562))},40781,a=>{a.n(a.i(49670))},69411,a=>{a.n(a.i(75700))},63081,a=>{a.n(a.i(276))},62837,a=>{a.n(a.i(40795))},34607,a=>{a.n(a.i(11614))},96338,a=>{a.n(a.i(21751))},50642,a=>{a.n(a.i(12213))},32242,a=>{a.n(a.i(22693))},88530,a=>{a.n(a.i(10531))},93695,(a,b,c)=>{b.exports=a.x("next/dist/shared/lib/no-fallback-error.external.js",()=>require("next/dist/shared/lib/no-fallback-error.external.js"))},8583,a=>{a.n(a.i(1082))},38534,a=>{a.n(a.i(98175))},70408,a=>{a.n(a.i(9095))},22922,a=>{a.n(a.i(96772))},78294,a=>{a.n(a.i(71717))},16625,a=>{a.n(a.i(85034))},88648,a=>{a.n(a.i(68113))},51914,a=>{a.n(a.i(66482))},25466,a=>{a.n(a.i(91505))},4487,a=>{"use strict";let b=[{slug:"getting-started",title:"Getting Started",section:"Learn",topic:"getting-started",summary:"Set up the legacy MiniLang runtime, open MiniLang Studio, and run your first real `.mini.c` program.",whatItIs:"Getting Started is the shortest path from an empty repo clone to a working MiniLang file you can check, run, and edit in MiniLang Studio.",whyItExists:"MiniLang is being developed as a real language environment, so the first step has to cover the runtime, CLI, Studio, and the actual file shape used by the legacy language today.",syntax:"MiniLang source files currently use the `.mini.c` extension. Entry points are regular functions such as `fn number Main(){ ... }`.",pitfalls:"Do not use the newer `.mini`, `.miniproj`, or `.miniws` examples from older experimental work when you are targeting the active legacy runtime in this repository.",bestPractices:"Start with one runnable file, keep `Main` simple, and use the CLI `check` command before adding interop or reusable libraries.",compilerView:"The legacy host tokenizes the file, groups scopes and expressions, validates grammar, interprets `use` imports, then executes the resulting token stream through the runtime engine.",examples:[{topic:"getting-started",title:"Smallest runnable program",code:`fn number Main(){
+    say "MiniLang ready";
+    give 0;
+}`,result:"MiniLang ready"},{topic:"getting-started",title:"Check a source file from the command line",code:"dotnet run --project MiniLangTest/MiniLangCLI.csproj -- check MiniLangGuide/MiniLang_Syntax_Guide/ArraysAndForeach.mini.c"}]},{slug:"variables-make",title:"Variables and make",section:"Learn",topic:"variables-make",summary:"Use `make` to declare mutable variables and assign numbers, strings, arrays, and reusable function results.",whatItIs:"The `make` keyword introduces a variable into the current scope and optionally assigns a value immediately.",whyItExists:"MiniLang keeps local state explicit so scopes, assignment, and diagnostics stay easy to understand while the language grows.",syntax:"Use `make name = expression;` to declare a variable and `name = expression;` to update it later.",pitfalls:"Do not read a variable that was never declared, and remember that every `make` statement still needs a terminating semicolon.",bestPractices:"Initialize variables as close as possible to where they are used, and give loop accumulators simple names like `count`, `sum`, or `current`.",compilerView:"The `MakeGrammar` validates the declaration, records the symbol in the local scope model, and stores the runtime type inferred from the assigned value.",examples:[{topic:"variables-make",title:"Declare a number and update it",code:`fn number Main(){
+    make total = 10;
+    total = total + 5;
+    say total;
+    give 0;
+}`,result:"15"},{topic:"variables-make",title:"Store an array in a variable",code:`fn number Main(){
+    make values = [1, 2, 3];
+    say Length(values);
+    give 0;
+}`,result:"3"}]},{slug:"functions",title:"Functions",section:"Learn",topic:"functions",summary:"Declare functions with `fn`, explicit return types, typed parameters, and `give` return values.",whatItIs:"Functions are MiniLang's reusable executable units. They can accept typed parameters, return typed values, and be imported through `use`.",whyItExists:"A real language needs stable reusable behavior, not only top-level statements in one file.",syntax:"Use `fn <return-type> Name(<params>){ ... }`. Return with `give expression;` or `give 0;` for numeric entry points.",pitfalls:"Do not omit a return value for a function that declares `number`, `string`, `array`, or another non-`nothing` type.",bestPractices:"Keep each function focused on one job and use explicit parameter types like `array values` when the expected input matters.",compilerView:"Function declarations are recorded in the declaration scope first, then their bodies are interpreted with parameter symbols injected into a child scope.",examples:[{topic:"functions",title:"Numeric return value",code:`fn number Add(number left, number right){
+    give left + right;
+}
+
+fn number Main(){
+    say Add(3, 4);
+    give 0;
+}`,result:"7"},{topic:"functions",title:"Array return value",code:`fn array BuildValues(){
+    give [10, 20, 30];
+}
+
+fn number Main(){
+    say Length(BuildValues());
+    give 0;
+}`,result:"3"}]},{slug:"arrays",title:"Arrays",section:"Reference",topic:"arrays",summary:"MiniLang arrays are mutable, zero-based, dynamic collections that work with literals, indexing, and builtin helpers.",whatItIs:"The builtin `array` type stores ordered runtime values and supports literals, indexing, mutation, and array-specific helpers.",whyItExists:"Collections are necessary for real data work, reusable libraries, and iteration features like `foreach`.",syntax:"Use `[value1, value2]` for literals, `values[index]` to read, and `values[index] = expression;` to write.",pitfalls:"Indexes must be numbers, indexing a non-array value is an error, and out-of-range indexes fail at runtime.",bestPractices:"Use arrays for ordered data, keep indexes zero-based in your mental model, and prefer `Length(values)` over hard-coded limits.",compilerView:"Array literals and array index expressions are converted into dedicated syntax objects, validated by the expression analyser, and executed through `RuntimeArrayValue` at runtime.",examples:[{topic:"arrays",title:"Create and read an array",code:`fn number Main(){
+    make values = [5, 10, 15];
+    say values[0];
+    say values[2];
+    give 0;
+}`,result:`5
+15`},{topic:"arrays",title:"Mutate an array through indexing",code:`fn number Main(){
+    make values = [1, 2, 3];
+    values[1] = 42;
+    say values[1];
+    give 0;
+}`,result:"42"},{topic:"arrays",title:"Use the builtin array helpers",code:`fn number Main(){
+    make values = [1, 2];
+    Push(values, 3);
+    say Length(values);
+    say Contains(values, 2);
+    say Pop(values);
+    give 0;
+}`,result:`3
+1
+3`}]},{slug:"foreach",title:"foreach",section:"Reference",topic:"foreach",summary:"Use legacy-style `foreach item in values:` loops to iterate through array values without manual indexing.",whatItIs:"The `foreach` statement binds one loop variable at a time and runs its body once for each element in an array expression.",whyItExists:"It gives MiniLang a practical iteration construct for collection code without forcing users to write manual `while` index loops for everything.",syntax:"Use `foreach item in values:` followed by one or more body statements and end the block with `done`.",pitfalls:"The loop target must be an array, and the current v1 form is value-only, so you do not get the index automatically.",bestPractices:"Use `foreach` when you care about each item more than the numeric position, and keep the loop variable short and descriptive.",compilerView:"The `ForeachGrammar` validates the loop header and emits a dedicated syntax object. The runtime snapshots the array and executes the loop body inside a fresh scope for each item.",examples:[{topic:"foreach",title:"Print every array item",code:`fn number Main(){
+    make values = [1, 2, 3];
+    foreach item in values:
+        say item;
+    done
+    give 0;
+}`,result:`1
+2
+3`},{topic:"foreach",title:"Accumulate a total",code:`fn number Main(){
+    make values = [10, 20, 30];
+    make total = 0;
+    foreach item in values:
+        total = total + item;
+    done
+    say total;
+    give 0;
+}`,result:"60"}]},{slug:"operators-expressions",title:"Operators and expressions",section:"Reference",topic:"operators-expressions",summary:"Numbers, strings, comparisons, function calls, interop calls, and array expressions all participate in MiniLang expressions.",whatItIs:"Expressions are the values MiniLang can evaluate inside `make`, `say`, `if`, `while`, `give`, and array operations.",whyItExists:"A usable language needs a consistent value model across arithmetic, branching, array access, and function calls.",syntax:"MiniLang supports `+`, `-`, `*`, `/`, `%`, `^`, `==`, `!=`, `<`, `>`, `<=`, and `>=` with grouped expressions in parentheses.",pitfalls:"Do not mix invalid operand types, and remember that array indexes are expressions too, so invalid index types surface as expression diagnostics.",bestPractices:"Keep nested expressions readable with parentheses and split very long calculations into named helper variables.",compilerView:"The runtime expression evaluator parses precedence, resolves identifiers and function calls, and applies operators over numbers, strings, enums, and arrays where supported.",examples:[{topic:"operators-expressions",title:"Arithmetic and precedence",code:`fn number Main(){
+    say 2 + 3 * 4;
+    say (2 + 3) * 4;
+    give 0;
+}`,result:`14
+20`},{topic:"operators-expressions",title:"Use an indexed array value in an expression",code:`fn number Main(){
+    make values = [5, 6, 7];
+    say values[0] + values[2];
+    give 0;
+}`,result:"12"}]},{slug:"enums",title:"Enums",section:"Reference",topic:"enums",summary:"Enums provide named symbolic values with member access like `Tone.Warm` and equality comparisons.",whatItIs:"An enum declares a closed set of named values that MiniLang can resolve, compare, and surface in completion and hover.",whyItExists:"Enums make state and modes easier to read than raw numbers or strings, especially once functions and interop wrappers grow.",syntax:"Declare an enum with `enum Name { ... }` and access members with `Name.Member`.",pitfalls:"Do not declare duplicate members, and do not compare enum values using arithmetic operators.",bestPractices:"Use enums for modes, states, and named options that should stay closed and documented.",compilerView:"Enum members are registered into the enum frame so expressions can resolve `Name.Member` as real runtime values instead of plain dead identifiers.",examples:[{topic:"enums",title:"Declare and compare enum members",code:`enum Tone {
+    Warm;
+    Cool;
+}
+
+fn number Main(){
+    if(Tone.Warm == Tone.Warm):
+        say "same";
+    else
+        say "different";
+    done
+    give 0;
+}`,result:"same"},{topic:"enums",title:"Pass an enum to a function",code:`enum BuildMode {
+    Debug;
+    Release;
+}
+
+fn nothing ShowMode(BuildMode mode){
+    say mode;
+}
+
+fn number Main(){
+    ShowMode(BuildMode.Release);
+    give 0;
+}`,result:"BuildMode.Release"}]},{slug:"structs",title:"Structs",section:"Reference",topic:"structs",summary:"Structs group related fields and constructor-style initialization behind MiniLang's existing object model.",whatItIs:"Structs are MiniLang's current grouped data declaration form for named fields and reusable data shapes.",whyItExists:"They let the language express richer data than separate loose variables while staying readable in the legacy syntax model.",syntax:"Declare a struct with `struct Name { ... }` and create one with `make item = new Name;`.",pitfalls:"Struct support in the legacy runtime is older than arrays and enums, so keep field usage straightforward and test imported struct helpers carefully.",bestPractices:"Use structs for bundled data, keep field names simple, and keep logic in functions rather than overloading the struct declaration itself.",compilerView:"Struct declarations are registered in the struct table and resolved during `new` object creation at runtime.",examples:[{topic:"structs",title:"Declare a simple struct",code:`struct AppWindow {
+    public Title;
+    public Width;
+}`},{topic:"structs",title:"Construct a struct value",code:`fn number Main(){
+    make window = new AppWindow;
+    give 0;
+}`}]},{slug:"use-libraries",title:"use and reusable libraries",section:"Tooling",topic:"use-libraries",summary:"Import reusable `.mini.c` files with `use` and organize shared code under `MiniLangLibraries`.",whatItIs:"The `use` statement imports another MiniLang source file and injects its declarations into the current compilation flow.",whyItExists:"It gives the language a real reusable code path instead of forcing every app to live in one file.",syntax:'Use `use "MiniLangLibraries/Console/Console.mini.c";` or a relative path like `use "../libs/Greeter.mini.c";`.',pitfalls:"Imported file paths must point to real files, and confusing relative paths can still create fragile code even with the smarter path resolver.",bestPractices:"Put shared helpers under `MiniLangLibraries`, runnable entry files under `MiniLangProjects`, and keep imports explicit and readable.",compilerView:"The use-path context tracks the importing file, resolves the referenced file, parses it, then injects the imported tokens into the active interpreted token stream.",examples:[{topic:"use-libraries",title:"Import reusable console helpers",code:`use "MiniLangLibraries/Console/Console.mini.c";
+
+fn number Main(){
+    ConsoleWriteLine("ready");
+    give 0;
+}`,result:"ready"},{topic:"use-libraries",title:"Import the reusable array helpers",code:`use "MiniLangLibraries/Collections/ArrayTools.mini.c";
+
+fn number Main(){
+    make values = BuildReleaseNumbers();
+    say SumValues(values);
+    give 0;
+}`,result:"12"}]},{slug:"windows-interop",title:"Windows interop",section:"Interop",topic:"windows-interop",summary:"Use the safe `win` bridge to call approved user-mode Windows helpers from MiniLang code.",whatItIs:"Windows interop in the active legacy runtime is a curated bridge over managed wrappers for approved user-mode APIs and system helpers.",whyItExists:"It gives MiniLang a serious platform direction without opening the door to unsafe kernel, bypass, or exploit-oriented behavior.",syntax:'Use `win <namespace> <Function>(...)` such as `win process GetCurrentProcessId()` or `win console SetTitle("MiniLang")`.',pitfalls:"Do not expect arbitrary namespaces or functions to work; only registered bridge namespaces and functions are valid.",bestPractices:"Keep interop behind small wrapper functions, prefer user-mode console, process, time, IO, and user APIs, and validate behavior through the CLI before wiring it into larger apps.",compilerView:"Interop calls are lowered into `CSharpCallSyntaxObject` values and executed through the managed interop bridge registry at runtime.",examples:[{topic:"windows-interop",title:"Read process information",code:`fn number Main(){
+    say win process GetCurrentProcessId();
+    give 0;
+}`},{topic:"windows-interop",title:"Change the console title",code:`fn number Main(){
+    say win console SetTitle("MiniLang Legacy Runtime");
+    give 0;
+}`}]},{slug:"cli",title:"CLI",section:"Tooling",topic:"cli",summary:"The legacy MiniLang CLI checks, runs, and inspects `.mini.c` files from the command line.",whatItIs:"The CLI is the scripted interface to the active legacy runtime and analysis host.",whyItExists:"A serious language project needs a repeatable non-IDE workflow for checking programs, running samples, and inspecting diagnostics as JSON.",syntax:"Current commands are `check`, `check-json`, `run`, `run-json`, and `inspect-json`.",pitfalls:"Point the CLI at a real source file path. If you run commands from the wrong folder, relative imports can still confuse you even though `use` resolution is smarter now.",bestPractices:"Use `check` during editing, `run` for quick runtime smoke tests, and `inspect-json` when working on Studio integration or tooling.",compilerView:"The CLI forwards to `LegacyMiniLangHost`, which builds the same analysis and runtime data used by Studio.",examples:[{topic:"cli",title:"Check a source file",code:"dotnet run --project MiniLangTest/MiniLangCLI.csproj -- check MiniLangGuide/MiniLang_Syntax_Guide/ArraysAndForeach.mini.c"},{topic:"cli",title:"Run a source file as JSON",code:"dotnet run --project MiniLangTest/MiniLangCLI.csproj -- run-json MiniLangProjects/Workspace/App/CollectionApp.mini.c"}]},{slug:"studio",title:"MiniLang Studio",section:"Tooling",topic:"studio",summary:"MiniLang Studio is the WinUI host plus Monaco-based IDE shell for editing, diagnostics, startup files, and build/run workflows.",whatItIs:"Studio is the desktop IDE for the current MiniLang runtime: explorer, Monaco editor, diagnostics, inspector panes, startup-file workflow, and Debug/Release runs.",whyItExists:"A serious language ecosystem needs a first-party editing environment that understands the language rather than a blank text box.",syntax:"Open a `.mini.c` file, edit in Monaco, use the explorer to set a startup file, and run in Debug or Release from the toolbar.",pitfalls:"Do not assume the active editor tab is always the startup file; if you have set a startup file in Explorer, Build and Run use that file.",bestPractices:"Set one startup file per runnable workspace area, keep reusable library files non-startup, and use the diagnostics list to jump directly to source problems.",compilerView:"Studio asks the host for analysis, completions, hover, definitions, build results, and runtime output, then renders those through Monaco and structured tool panes.",examples:[{topic:"studio",title:"Launch Studio from PowerShell",code:'& "C:\\Users\\Demon\\source\\repos\\MiniLang\\run-studio.ps1"'},{topic:"studio",title:"Release run behavior",code:`Config: Release
+Run -> save startup file -> build MiniLangCLI Release -> launch external console window`}]},{slug:"diagnostics",title:"Diagnostics",section:"Tooling",topic:"diagnostics",summary:"MiniLang diagnostics explain syntax, scope, interop, and collection mistakes in both the CLI and Studio.",whatItIs:"Diagnostics are the structured errors and warnings returned by the analysis and runtime hosts when MiniLang code is invalid.",whyItExists:"Once a language grows past toy examples, users need source-linked feedback rather than vague exceptions.",syntax:"Diagnostics currently surface with an id, severity, message, line, column, start offset, and length.",pitfalls:"Do not ignore analysis failures just because the runtime still builds; syntax and scope diagnostics usually point at real broken behavior.",bestPractices:"Fix the first syntax or scope error before chasing follow-up diagnostics, and use `inspect-json` when you want the raw diagnostic payload.",compilerView:"The legacy host catches interpreter and runtime exceptions, maps them to source offsets, then sends the normalized diagnostics to the CLI and Studio.",examples:[{topic:"diagnostics",title:"Indexing a non-array value",code:`fn number Main(){
+    make value = 5;
+    say value[0];
+    give 0;
+}`,result:"Error ML0001: Cannot index non-array target 'value'."},{topic:"diagnostics",title:"Foreach over a non-array value",code:`fn number Main(){
+    make value = 5;
+    foreach item in value:
+        say item;
+    done
+    give 0;
+}`,result:"Error ML0001: Cannot foreach over non-array target 'value'."}]},{slug:"compiler-internals",title:"Compiler internals",section:"Internals",topic:"compiler-internals",summary:"How the active legacy MiniLang pipeline tokenizes, groups, validates, interprets, and executes source files today.",whatItIs:"Compiler Internals documents the actual architecture of the legacy runtime that powers the current language, CLI, and Studio.",whyItExists:"The codebase is growing into a larger ecosystem, so the real pipeline needs to be understandable and documented instead of hidden behind vague marketing language.",syntax:"The current pipeline is: raw source -> tokenizer -> parser grouping -> structured token builder -> grammar validation/interpreter -> runtime engine.",pitfalls:"Do not confuse the legacy runtime path with the separate experimental newer compiler stack elsewhere in the repository.",bestPractices:"When adding a language feature, update tokenization, grouping, validation, runtime execution, tests, and docs together.",compilerView:"Arrays and foreach follow the same rule: they start as tokens, become structured syntax objects, are validated in grammar/expression analysis, then execute through runtime-specific handlers.",examples:[{topic:"compiler-internals",title:"Legacy analysis flow",code:"Source text -> Tokenizer -> Parser -> TokenBuilder -> GrammarInterpreter -> LegacyMiniLangHost.AnalyzeSource"},{topic:"compiler-internals",title:"Legacy runtime flow",code:"Interpreted tokens -> RuntimeEngine -> RuntimeExpressionEvaluator -> builtin executables / user functions / interop bridge"}]}];a.s(["docsPages",0,b,"getDocNeighbors",0,function(a){let c=b.findIndex(b=>b.slug===a);return{previous:c>0?b[c-1]:null,next:c>=0&&c<b.length-1?b[c+1]:null}},"getDocPage",0,function(a){return b.find(b=>b.slug===a)}])},44288,a=>{"use strict";var b=a.i(7997),c=a.i(95936);a.i(70396);var d=a.i(73727),e=a.i(4487);a.s(["default",0,function({params:a}){let{slug:f}=a,g=(0,e.getDocPage)(f);g||(0,d.notFound)();let h=(0,e.getDocNeighbors)(f);return(0,b.jsxs)("div",{className:"docs-layout",children:[(0,b.jsxs)("aside",{className:"sidebar",children:[(0,b.jsx)("span",{className:"section-label",children:"MiniLang docs"}),(0,b.jsx)("nav",{children:e.docsPages.map(a=>(0,b.jsx)(c.default,{href:`/docs/${a.slug}`,children:a.title},a.slug))})]}),(0,b.jsxs)("article",{children:[(0,b.jsxs)("div",{className:"breadcrumbs",children:[(0,b.jsx)(c.default,{href:"/",children:"Home"}),(0,b.jsx)("span",{children:"/"}),(0,b.jsx)("span",{children:g.section}),(0,b.jsx)("span",{children:"/"}),(0,b.jsx)("span",{children:g.title})]}),(0,b.jsx)("div",{className:"section-label",style:{marginTop:16},children:g.section}),(0,b.jsx)("h1",{children:g.title}),(0,b.jsx)("p",{className:"muted",children:g.summary}),(0,b.jsx)("h2",{children:"What It Is"}),(0,b.jsx)("p",{children:g.whatItIs}),(0,b.jsx)("h2",{children:"Why It Exists"}),(0,b.jsx)("p",{children:g.whyItExists}),(0,b.jsx)("h2",{children:"Syntax"}),(0,b.jsx)("pre",{children:g.syntax}),(0,b.jsx)("h2",{children:"Examples"}),g.examples.map(a=>(0,b.jsxs)("section",{className:"example-card",children:[(0,b.jsx)("strong",{children:a.title}),(0,b.jsx)("pre",{children:a.code}),a.result?(0,b.jsxs)(b.Fragment,{children:[(0,b.jsx)("div",{className:"example-result-label",children:"Expected Result"}),(0,b.jsx)("pre",{className:"example-result",children:a.result})]}):null]},a.title)),(0,b.jsx)("h2",{children:"Pitfalls"}),(0,b.jsx)("p",{children:g.pitfalls}),(0,b.jsx)("h2",{children:"Best Practices"}),(0,b.jsx)("p",{children:g.bestPractices}),(0,b.jsx)("h2",{children:"Compiler View"}),(0,b.jsx)("p",{children:g.compilerView}),(0,b.jsxs)("div",{className:"pager",children:[h.previous?(0,b.jsxs)(c.default,{href:`/docs/${h.previous.slug}`,children:["Previous: ",h.previous.title]}):(0,b.jsx)("span",{}),h.next?(0,b.jsxs)(c.default,{href:`/docs/${h.next.slug}`,children:["Next: ",h.next.title]}):(0,b.jsx)("span",{})]})]})]})},"generateStaticParams",0,function(){return e.docsPages.map(a=>({slug:a.slug}))}])},39628,a=>{a.n(a.i(44288))}];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__0q_~1gk._.js.map

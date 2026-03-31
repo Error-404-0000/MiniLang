@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="apps/MiniLang.Cli/MiniLang.Cli.csproj" />
+    <Project Path="apps/MiniLang.Studio/MiniLang.Studio.csproj" />
+    <Project Path="src/MiniLang.Core/MiniLang.Core.csproj" />
+    <Project Path="src/MiniLang.Interop/MiniLang.Interop.csproj" />
+    <Project Path="src/MiniLang.LanguageServices/MiniLang.LanguageServices.csproj" />
+    <Project Path="src/MiniLang.Runtime/MiniLang.Runtime.csproj" />
+    <Project Path="src/MiniLang.Workspace/MiniLang.Workspace.csproj" />
+    <Project Path="tests/MiniLang.Core.Tests/MiniLang.Core.Tests.csproj" />
+  </Folder>
+</Solution>

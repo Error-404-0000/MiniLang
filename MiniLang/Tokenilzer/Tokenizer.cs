@@ -67,7 +67,7 @@ public static class Tokenizer
                 continue;
             }
 
-            if (char.IsLetter(c))
+            if (char.IsLetter(c) || c == '_')
             {
                 currentToken.Append(c);
                 continue;

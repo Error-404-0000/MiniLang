@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiniLang Studio</title>
+  <style>
+    :root {
+      --bg: #0f141b;
+      --surface: #151b24;
+      --surface-2: #1b2330;
+      --surface-3: #202a38;
+      --border: #2a3545;
+      --border-strong: #37506f;
+      --accent: #58a8ff;
+      --accent-soft: rgba(88, 168, 255, 0.16);
+      --text: #f2f6ff;
+      --muted: #93a4bc;
+      --danger: #ff7272;
+      --warning: #ffce7c;
+      --success: #87d896;
+      --left-width: 290px;
+      --right-width: 360px;
+      --bottom-height: 240px;
+      --title-height: 50px;
+      --toolbar-height: 46px;
+      --status-height: 30px;
+      --code-font: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+      --ui-font: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--ui-font);
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #202937 0%, #18212d 100%);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0 12px;
+      height: 32px;
+      cursor: pointer;
+      transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+    }
+
+    button:hover {
+      border-color: var(--border-strong);
+      background: linear-gradient(180deg, #263244 0%, #1c2634 100%);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.primary {
+      border-color: #4c8fd8;
+      background: linear-gradient(180deg, #2e70b6 0%, #235d99 100%);
+    }
+
+    select,
+    input[type="text"] {
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #121923;
+      color: var(--text);
+      padding: 0 10px;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(88, 168, 255, 0.12);
+    }
+
+    #app {
+      display: grid;
+      width: 100%;
+      height: 100%;
+      grid-template-rows: var(--title-height) var(--toolbar-height) 1fr var(--status-height);
+      background:
+        radial-gradient(circle at top left, rgba(61, 98, 141, 0.18), transparent 38%),
+        linear-gradient(180deg, #10161f 0%, #0c1117 100%);
+    }
+
+    .titlebar,
+    .toolbar,
+    .statusbar {
+      display: grid;
+      align-items: center;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .titlebar {
+      grid-template-columns: auto 1fr 220px;
+      background: linear-gradient(180deg, rgba(26, 35, 47, 0.96), rgba(18, 24, 33, 0.96));
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #66b1ff, #2d7eda);
+      box-shadow: 0 0 18px rgba(88, 168, 255, 0.55);
+    }
+
+    .caption {
+      color: var(--muted);
+      font-size: 12.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .title-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(16, 22, 30, 0.72);
+    }
+
+    .toolbar {
+      grid-template-columns: auto auto 1fr auto auto auto;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(20, 26, 35, 0.98), rgba(18, 22, 30, 0.98));
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #commandBox {
+      width: 100%;
+      max-width: 460px;
+      justify-self: center;
+    }
+
+    .workspace-shell {
+      display: grid;
+      min-height: 0;
+      min-width: 0;
+      grid-template-rows: 1fr 6px var(--bottom-height);
+      padding: 10px;
+      gap: 0;
+    }
+
+    .main-workspace {
+      display: grid;
+      min-width: 0;
+      min-height: 0;
+      grid-template-columns: var(--left-width) 6px minmax(360px, 1fr) 6px var(--right-width);
+    }
+
+    .dock-region,
+    .editor-region {
+      min-width: 0;
+      min-height: 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #161d28 0%, #121822 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    }
+
+    .dock-region {
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .editor-region {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background: linear-gradient(180deg, #121821 0%, #0d131b 100%);
+    }
+
+    .dock-tabbar,
+    .editor-tabbar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      min-height: 38px;
+      padding: 6px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(29, 38, 51, 0.95), rgba(20, 27, 36, 0.95));
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .dock-tab,
+    .editor-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    .dock-tab:hover,
+    .editor-tab:hover {
+      color: var(--text);
+      background: rgba(88, 168, 255, 0.08);
+    }
+
+    .dock-tab.active,
+    .editor-tab.active {
+      color: var(--text);
+      border-color: var(--border-strong);
+      background: linear-gradient(180deg, rgba(46, 61, 81, 0.9), rgba(30, 41, 55, 0.9));
+    }
+
+    .dock-tab.dragging {
+      opacity: 0.45;
+    }
+
+    .tab-close {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      border-radius: 999px;
+    }
+
+    .tab-close:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+
+    .dock-content,
+    .editor-surface {
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+    }
+
+    #editorHost {
+      width: 100%;
+      height: 100%;
+    }
+
+    .splitter {
+      position: relative;
+      z-index: 5;
+      background: transparent;
+    }
+
+    .splitter::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      background: var(--border);
+      border-radius: 999px;
+      opacity: 0.65;
+    }
+
+    .splitter.vertical {
+      cursor: col-resize;
+    }
+
+    .splitter.vertical::before {
+      width: 2px;
+      height: calc(100% - 16px);
+    }
+
+    .splitter.horizontal {
+      cursor: row-resize;
+      height: 6px;
+    }
+
+    .splitter.horizontal::before {
+      height: 2px;
+      width: calc(100% - 24px);
+    }
+
+    .drop-target {
+      outline: 1px dashed transparent;
+      outline-offset: -8px;
+    }
+
+    .drop-target.over {
+      outline-color: rgba(88, 168, 255, 0.62);
+      background: linear-gradient(180deg, rgba(27, 41, 58, 0.9), rgba(20, 29, 40, 0.9));
+    }
+
+    .pane-scroll {
+      height: 100%;
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .tree {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12.5px;
+    }
+
+    .tree-node {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tree-row {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 0 8px;
+      border-radius: 8px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease;
+      border: 1px solid transparent;
+    }
+
+    .tree-row:hover {
+      background: rgba(88, 168, 255, 0.08);
+    }
+
+    .tree-row.selected {
+      border-color: rgba(88, 168, 255, 0.42);
+      background: rgba(88, 168, 255, 0.12);
+    }
+
+    .tree-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .tree-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tree-details {
+      color: var(--muted);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tree-children {
+      margin-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tree-node.collapsed > .tree-children {
+      display: none;
+    }
+
+    .expander {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .kind-pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .list-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .list-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 34px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 0 10px;
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+
+    .list-row:hover {
+      background: rgba(88, 168, 255, 0.08);
+    }
+
+    .list-row.active {
+      border-color: rgba(88, 168, 255, 0.42);
+      background: rgba(88, 168, 255, 0.12);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .badge.error {
+      color: #ffd6d6;
+      border-color: rgba(255, 114, 114, 0.36);
+      background: rgba(255, 114, 114, 0.12);
+    }
+
+    .badge.warning {
+      color: #fff0cf;
+      border-color: rgba(255, 206, 124, 0.3);
+      background: rgba(255, 206, 124, 0.12);
+    }
+
+    .console-output {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      white-space: pre-wrap;
+      color: #d9e5f6;
+      font-family: var(--code-font);
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+
+    .statusbar {
+      grid-template-columns: auto auto auto 1fr auto auto;
+      gap: 14px;
+      background: linear-gradient(180deg, rgba(18, 24, 33, 0.98), rgba(14, 19, 27, 0.98));
+      border-top: 1px solid var(--border);
+      border-bottom: none;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(8, 11, 15, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 15;
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-card {
+      width: 460px;
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #18212d 0%, #111823 100%);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+    }
+
+    .modal-header,
+    .modal-footer {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-footer {
+      border-top: 1px solid var(--border);
+      border-bottom: none;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px;
+    }
+
+    .pane-toggle {
+      display: grid;
+      grid-template-columns: 20px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .pane-toggle:hover {
+      border-color: var(--border);
+    }
+
+    .empty-state {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      color: var(--muted);
+      padding: 24px;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .mini-error-squiggle {
+      text-decoration-line: underline;
+      text-decoration-style: wavy;
+      text-decoration-color: #ff5f6d;
+      text-decoration-thickness: 1.5px;
+    }
+
+    .mini-warning-squiggle {
+      text-decoration-line: underline;
+      text-decoration-style: wavy;
+      text-decoration-color: #ffce7c;
+      text-decoration-thickness: 1.5px;
+    }
+
+    .context-menu {
+      position: fixed;
+      z-index: 25;
+      min-width: 220px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #1b2430 0%, #121923 100%);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+      padding: 6px;
+    }
+
+    .context-menu.hidden {
+      display: none;
+    }
+
+    .context-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 34px;
+      border-radius: 8px;
+      padding: 0 10px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .context-item:hover {
+      background: rgba(88, 168, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="titlebar">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div>MiniLang Studio</div>
+        <div class="caption" id="windowCaption">Loading workspace</div>
+      </div>
+      <input id="commandBox" type="text" placeholder="Search commands, symbols, docs, or files" />
+      <div class="title-meta">
+        <div class="pill" id="statusPill">Starting shell</div>
+        <div class="pill" id="startupFilePill">Startup: none</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <button id="saveButton">Save</button>
+        <button id="buildButton">Build</button>
+        <button id="runButton" class="primary">Run</button>
+        <button id="consoleRunButton">Run in Console</button>
+      </div>
+      <div class="toolbar-group">
+        <button id="panelsButton">Panels</button>
+        <button id="resetLayoutButton">Reset Layout</button>
+      </div>
+      <input id="toolbarSearchBox" type="text" placeholder="Command / symbol filter" />
+      <div class="toolbar-group">
+        <select id="targetSelector">
+          <option>windows-x64</option>
+          <option>freestanding-qemu</option>
+        </select>
+      </div>
+      <div class="toolbar-group">
+        <select id="configSelector">
+          <option>Debug</option>
+          <option>Release</option>
+        </select>
+      </div>
+      <div class="toolbar-group">
+        <button id="openConsoleTabButton">Terminal</button>
+      </div>
+    </div>
+
+    <div class="workspace-shell">
+      <div class="main-workspace">
+        <section id="leftRegion" class="dock-region drop-target" data-region="left"></section>
+        <div class="splitter vertical" data-splitter="left"></div>
+        <section class="editor-region">
+          <div id="editorTabs" class="editor-tabbar"></div>
+          <div class="editor-surface">
+            <div id="editorHost"></div>
+          </div>
+        </section>
+        <div class="splitter vertical" data-splitter="right"></div>
+        <section id="rightRegion" class="dock-region drop-target" data-region="right"></section>
+      </div>
+      <div class="splitter horizontal" data-splitter="bottom"></div>
+      <section id="bottomRegion" class="dock-region drop-target" data-region="bottom"></section>
+    </div>
+
+    <div class="statusbar">
+      <div id="cursorStatus">Ln 1, Col 1</div>
+      <div>UTF-8</div>
+      <div>LF</div>
+      <div id="analysisStatus">Waiting for analysis</div>
+      <div id="buildStatus">Debug | Idle</div>
+      <div id="activeDocumentStatus">No document</div>
+    </div>
+  </div>
+
+  <div id="paneModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="font-size: 15px; font-weight: 600;">Panels</div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Show, hide, and restore docked tool windows.</div>
+      </div>
+      <div id="paneToggleList" class="modal-body"></div>
+      <div class="modal-footer">
+        <button id="closePaneModalButton">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="explorerContextMenu" class="context-menu hidden" aria-hidden="true"></div>
+
+  <script src="./minilangEditor.js"></script>
+</body>
+</html>

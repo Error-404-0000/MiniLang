@@ -1,4 +1,4 @@
-﻿
+
 struct FullName{
     public FirstName -> string;
     public LastName -> string;
@@ -15,7 +15,7 @@ struct Country{
         give "$(Country) $(State) $(ZipCode)";
     done
 
-}
+} 
 struct DayMonthYear{
     public Day->number;
     public Month -> number;

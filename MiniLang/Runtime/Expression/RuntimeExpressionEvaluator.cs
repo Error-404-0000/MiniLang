@@ -1,19 +1,17 @@
-﻿using MiniLang.Functions;
-using MiniLang.Runtime.Expression;
-using MiniLang.Runtime.RuntimeExecutors.Builtins;
+using MiniLang.Functions;
+using MiniLang.Interop;
+using MiniLang.Runtime.Collections;
 using MiniLang.Runtime.RuntimeObjectStack;
 using MiniLang.Runtime.StackObjects.StackFrame;
+using MiniLang.SyntaxObjects.Collections;
 using MiniLang.TokenObjects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace MiniLang.Runtime.Expression
 {
     public class RuntimeExpressionEvaluator
     {
         private readonly RuntimeContext _context;
-        private List<Token> _tokens;
+        private List<Token> _tokens = [];
         private int _pos;
 
         public RuntimeExpressionEvaluator(RuntimeContext context)
@@ -32,7 +30,7 @@ namespace MiniLang.Runtime.Expression
         {
             var left = ParsePrimary();
 
-            while (_pos < _tokens.Count && IsOperator(_tokens[_pos], out int opPrecedence) && opPrecedence >= precedence)
+            while (_pos < _tokens.Count && IsOperator(_tokens[_pos], out var opPrecedence) && opPrecedence >= precedence)
             {
                 var opToken = _tokens[_pos++];
                 var right = ParseExpression(opPrecedence + 1);
@@ -45,50 +43,137 @@ namespace MiniLang.Runtime.Expression
         private RuntimeValue ParsePrimary()
         {
             if (_pos >= _tokens.Count)
+            {
                 throw new Exception("Unexpected end of expression.");
+            }
 
             var token = _tokens[_pos++];
 
             return token.TokenType switch
             {
-                TokenType.Number => new RuntimeValue(TokenType.Number,TokenOperation.None, double.Parse(token.Value.ToString()!)),
-                TokenType.StringLiteralExpression => new RuntimeValue(TokenType.StringLiteralExpression,TokenOperation.None, new InterpolatedStringEvaluator(_context.RuntimeExpressionEvaluator)
-                .Evaluate(token, _context)),
+                TokenType.Number => new RuntimeValue(TokenType.Number, TokenOperation.None, double.Parse(token.Value.ToString()!)),
+                TokenType.StringLiteralExpression => new RuntimeValue(
+                    TokenType.StringLiteralExpression,
+                    TokenOperation.None,
+                    new InterpolatedStringEvaluator(_context.RuntimeExpressionEvaluator).Evaluate(token, _context)),
                 TokenType.Identifier => ResolveIdentifier(token),
                 TokenType.FunctionCall => EvaluateFunctionCall(token),
+                TokenType.CSharp => EvaluateInteropCall(token),
                 TokenType.Group => Evaluate(((List<Token>)token.Value!).ToList()),
+                TokenType.Array => EvaluateArray(token),
                 _ => throw new Exception($"Unexpected token in expression: {token.TokenType}")
             };
         }
 
         private RuntimeValue EvaluateFunctionCall(Token token)
         {
-            if (token.Value is not FunctionCallTokenObject func)
+            if (token.Value is not FunctionCallTokenObject)
+            {
                 throw new Exception("Malformed function call token");
+            }
 
-            var evaluatedArgs = func.FunctionArgments
-                .Select(arg => Evaluate(arg.Argment.ToList()))
-                .ToList();
-
-            var functionToken = _context.RuntimeEngine.Execute([token]);
-            return functionToken;
+            return _context.RuntimeEngine.Execute([token]);
         }
+
+        private RuntimeValue EvaluateInteropCall(Token token)
+        {
+            if (token.Value is not MiniLang.SyntaxObjects.Csharp.CSharpCallSyntaxObject interopCall)
+            {
+                throw new Exception("Malformed interop call token");
+            }
+
+            var arguments = interopCall.FunctionCall.FunctionArgments
+                .Select(arg => Evaluate(arg.Argment.ToList()))
+                .ToArray();
+
+            return InteropBridgeRegistry.Invoke(interopCall.NameSpace, interopCall.FunctionCall.FunctionName, arguments);
+        }
+
+        private RuntimeValue EvaluateArray(Token token)
+        {
+            return token.Value switch
+            {
+                ArrayLiteralSyntaxObject literal => new RuntimeValue(
+                    TokenType.Array,
+                    TokenOperation.None,
+                    new RuntimeArrayValue(literal.Elements.Select(element => Evaluate(element.ToList())))),
+                ArrayAccessSyntaxObject access => EvaluateArrayAccess(access),
+                _ => throw new Exception("Malformed array expression.")
+            };
+        }
+
+        private RuntimeValue EvaluateArrayAccess(ArrayAccessSyntaxObject access)
+        {
+            var target = EvaluateTarget(access.Target);
+            if (target.Type != TokenType.Array || target.Value is not RuntimeArrayValue array)
+            {
+                throw new Exception("Cannot index a non-array value.");
+            }
+
+            var indexValue = Evaluate(access.IndexExpression.ToList());
+            if (indexValue.Type != TokenType.Number)
+            {
+                throw new Exception("Array index must evaluate to a number.");
+            }
+
+            var index = Convert.ToInt32(indexValue.Value);
+            if (index < 0 || index >= array.Count)
+            {
+                throw new IndexOutOfRangeException($"Array index {index} is out of range.");
+            }
+
+            return array[index];
+        }
+
+        private RuntimeValue EvaluateTarget(Token token) =>
+            token.TokenType switch
+            {
+                TokenType.Identifier => ResolveIdentifier(token),
+                TokenType.FunctionCall => EvaluateFunctionCall(token),
+                TokenType.Array => EvaluateArray(token),
+                _ => throw new Exception($"Token '{token.TokenType}' cannot be used as an array target.")
+            };
 
         private RuntimeValue ResolveIdentifier(Token token)
         {
             string name = token.Value!.ToString()!;
+            if (_context.EnumFrame?.TryResolve(name, out var enumValue) == true && enumValue is not null)
+            {
+                return new RuntimeValue(TokenType.Enum, TokenOperation.Enum, enumValue);
+            }
+
             if (!_context.RuntimeScopeFrame.Exists(name))
+            {
                 throw new Exception($"Undeclared identifier: {name}");
+            }
 
             return _context.RuntimeScopeFrame.Get(name);
         }
 
         private RuntimeValue ApplyOperator(Token op, RuntimeValue left, RuntimeValue right)
         {
-            if(left.Type is TokenType.StringLiteralExpression  || right.Type is TokenType.StringLiteralExpression)
+
+            if (left.Type == TokenType.Enum || right.Type == TokenType.Enum)
             {
-                return new RuntimeValue(TokenType.StringLiteralExpression,TokenOperation.None,left.Value.ToString() + right.Value.ToString());
+                return op.TokenOperation switch
+                {
+                    TokenOperation.EqualOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, Equals(left.Value?.ToString(), right.Value?.ToString()) ? 1d : 0d),
+                    TokenOperation.Not => new RuntimeValue(TokenType.Number, TokenOperation.None, !Equals(left.Value?.ToString(), right.Value?.ToString()) ? 1d : 0d),
+                    _ => throw new Exception($"Operator '{op.TokenOperation}' is not supported for enum values.")
+                };
             }
+
+            if (left.Type is TokenType.StringLiteralExpression || right.Type is TokenType.StringLiteralExpression)
+            {
+                return op.TokenOperation switch
+                {
+                    TokenOperation.AddOperation => new RuntimeValue(TokenType.StringLiteralExpression, TokenOperation.None, left.Value.ToString() + right.Value.ToString()),
+                    TokenOperation.EqualOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, Equals(left.Value?.ToString(), right.Value?.ToString()) ? 1d : 0d),
+                    TokenOperation.Not => new RuntimeValue(TokenType.Number, TokenOperation.None, !Equals(left.Value?.ToString(), right.Value?.ToString()) ? 1d : 0d),
+                    _ => throw new Exception($"Operator '{op.TokenOperation}' is not supported for string values.")
+                };
+            }
+
             double l = Convert.ToDouble(left.Value);
             double r = Convert.ToDouble(right.Value);
 
@@ -100,7 +185,6 @@ namespace MiniLang.Runtime.Expression
                 TokenOperation.DivideOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l / r),
                 TokenOperation.ModuloOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l % r),
                 TokenOperation.PowerOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, Math.Pow(l, r)),
-
                 TokenOperation.LessThanOrEqual => new RuntimeValue(TokenType.Number, TokenOperation.None, l <= r ? 1 : 0),
                 TokenOperation.EqualOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, l == r ? 1 : 0),
                 TokenOperation.GreaterThanOrEqual => new RuntimeValue(TokenType.Number, TokenOperation.None, l >= r ? 1 : 0),
@@ -109,32 +193,26 @@ namespace MiniLang.Runtime.Expression
                 TokenOperation.Not => new RuntimeValue(TokenType.Number, TokenOperation.None, l != r ? 1 : 0),
                 TokenOperation.AndOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, ((l != 0) & (r != 0)) ? 1 : 0),
                 TokenOperation.OrOperation => new RuntimeValue(TokenType.Number, TokenOperation.None, ((l != 0) | (r != 0)) ? 1 : 0),
-
                 _ => throw new Exception($"Invalid operator: {op.TokenOperation}")
             };
-
         }
 
-        private bool IsOperator(Token token, out int precedence)
+        private static bool IsOperator(Token token, out int precedence)
         {
             precedence = token.TokenOperation switch
             {
                 TokenOperation.OrOperation => 1,
                 TokenOperation.AndOperation => 2,
-
                 TokenOperation.EqualOperation or TokenOperation.Not or
                 TokenOperation.LessThanOperation or TokenOperation.GreaterThanOperation or
                 TokenOperation.LessThanOrEqual or TokenOperation.GreaterThanOrEqual => 3,
-
                 TokenOperation.AddOperation or TokenOperation.SubtractOperation => 4,
                 TokenOperation.MultiplyOperation or TokenOperation.DivideOperation or TokenOperation.ModuloOperation => 5,
                 TokenOperation.PowerOperation => 6,
-
                 _ => -1
             };
 
             return precedence > 0;
         }
-
     }
 }

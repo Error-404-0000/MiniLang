@@ -1,0 +1,6 @@
+{
+  "name": "MiniLang Platform Workspace",
+  "projects": [
+    "platform.miniproj"
+  ]
+}

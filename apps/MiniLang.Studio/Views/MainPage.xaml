@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Page
+    x:Class="MiniLang.Studio.Views.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
+    mc:Ignorable="d"
+    RequestedTheme="Dark"
+    Background="{StaticResource AppBackgroundBrush}"
+    Loaded="Page_Loaded">
+    <Grid Background="{StaticResource AppBackgroundBrush}">
+        <controls:WebView2 x:Name="ShellView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <Border
+            x:Name="StartupOverlay"
+            Background="#D910151D"
+            BorderBrush="{StaticResource PanelBorderBrush}"
+            BorderThickness="1"
+            Padding="24"
+            CornerRadius="12"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            MinWidth="320">
+            <StackPanel Spacing="12">
+                <ProgressRing IsActive="True" Width="28" Height="28" Foreground="{StaticResource AccentBrush}" />
+                <TextBlock Text="MiniLang Studio" FontFamily="Segoe UI Variable Text" FontSize="22" FontWeight="SemiBold" Foreground="White" />
+                <TextBlock
+                    x:Name="StartupStatusText"
+                    Text="Loading Monaco shell..."
+                    FontFamily="Segoe UI Variable Text"
+                    FontSize="13"
+                    Foreground="#C9D6EB"
+                    TextWrapping="WrapWholeWords" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>

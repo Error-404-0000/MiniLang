@@ -7,6 +7,8 @@ public enum TokenType
     None,
     [ValueContainer(true, "cscall","win")]
     CSharp,
+    [ValueContainer(false, "enum")]
+    Enum,
     Group,
     [ValueContainer(true, "=", "-=", "+=")]
     SETTERS,
@@ -26,11 +28,11 @@ public enum TokenType
     [ValueContainer(false, ")")]
     ParenthesisClose,
 
-    [ValueContainer(true, "if", "else", "while")]
+    [ValueContainer(true, "if", "else", "while", "foreach")]
     Conditions,
 
 
-    [ValueContainer(true, "use", "make", "give")]
+    [ValueContainer(true, "use", "make", "give", "in")]
     Keyword,
     Expression,
 
@@ -48,6 +50,10 @@ public enum TokenType
     Semicolon,
     [ValueContainer(false, ".")]
     Dot,
+    [ValueContainer(false, "[")]
+    SquareBracketOpen,
+    [ValueContainer(false, "]")]
+    SquareBracketClose,
     StringLiteralExpression,
     [ValueContainer(false, ",")]
     Comma,
@@ -59,7 +65,7 @@ public enum TokenType
 
     [ValueContainer(false, "fn")]
     NewFunction,
-    [ValueContainer(true, "number", "string", "object", "nothing")]
+    [ValueContainer(true, "number", "string", "object", "nothing", "array")]
     ReturnType,
     #region struct
     [ValueContainer(false, "new")]
@@ -70,6 +76,7 @@ public enum TokenType
     @FieldAccess,
     #endregion
 
-    Object
+    Object,
+    Array
 
 }

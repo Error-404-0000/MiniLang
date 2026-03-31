@@ -1,0 +1,38 @@
+#[docs(summary: "MiniLang platform sample")]
+module samples.platform;
+
+use std.core;
+use sys.win32.user32;
+
+#[layout(kind: "sequential")]
+struct Point<T> {
+    public x: T;
+    public y: T;
+}
+
+enum BuildMode {
+    Debug,
+    Release
+}
+
+trait Renderable {
+    fn render(self: string) -> string;
+}
+
+impl Renderable for Point<int> {
+    fn render(self: string) -> string {
+        return self + " from MiniLang";
+    }
+}
+
+extern type HWND;
+
+#[dll_import(library: "user32.dll", entrypoint: "MessageBoxW", charset: "utf16")]
+#[calling_convention(value: "stdcall")]
+extern fn message_box(window: handle, text: string, caption: string, kind: int) -> int;
+
+#[export]
+#[docs(summary: "CLI and IDE smoke-test entrypoint")]
+fn main() -> string {
+    return "MiniLang platform ready";
+}

@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MiniLang.Core\MiniLang.Core.csproj" />
+    <ProjectReference Include="..\..\src\MiniLang.Workspace\MiniLang.Workspace.csproj" />
+    <ProjectReference Include="..\..\src\MiniLang.LanguageServices\MiniLang.LanguageServices.csproj" />
+    <ProjectReference Include="..\..\src\MiniLang.Interop\MiniLang.Interop.csproj" />
+    <ProjectReference Include="..\..\src\MiniLang.Runtime\MiniLang.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>

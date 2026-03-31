@@ -20,6 +20,11 @@ namespace MiniLang.Runtime.StackObjects.StackFrame
         }
         public bool Exists(string name)
         {
+            if (Resolve(name) is not null)
+            {
+                return true;
+            }
+
             var paths = GetStructPath(name);
 
             if (paths.Count < 2)
@@ -39,6 +44,12 @@ namespace MiniLang.Runtime.StackObjects.StackFrame
         }
         public void Assign(string name, RuntimeValue value)
         {
+            if (Resolve(name) is RuntimeVariable exact)
+            {
+                exact.Value = value;
+                return;
+            }
+
             var paths = GetStructPath(name);
             var target = Resolve(paths.Count > 0 ? paths[0] : throw new Exception($"no value with the name '{name}' was found."));
             if (target == null)
@@ -62,6 +73,11 @@ namespace MiniLang.Runtime.StackObjects.StackFrame
 
         public RuntimeValue Get(string name)
         {
+            if (Resolve(name) is RuntimeVariable exact)
+            {
+                return exact.Value!;
+            }
+
             var paths = GetStructPath(name);
             var target = Resolve(paths.Count > 0 ? paths[0] : throw new Exception($"no value with the name '{name}' was found."));
             if (target == null)

@@ -1,0 +1,255 @@
+/* [project]/src/app/globals.css [app-client] (css) */
+:root {
+  --lightningcss-light: ;
+  --lightningcss-dark: initial;
+  color-scheme: dark;
+  --bg: #0d1218;
+  --bg-elevated: #131b24;
+  --bg-soft: #182331;
+  --border: #243246;
+  --text: #f4f7fb;
+  --muted: #a9b8cb;
+  --accent: #4cb6ff;
+  --accent-soft: #4cb6ff24;
+  --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  --ui: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--ui);
+  color: var(--text);
+  background: radial-gradient(circle at 100% 0, #4cb6ff29, #0000 26%), linear-gradient(#0d1218 0%, #101722 55%, #0d1218 100%);
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.site-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  border: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  background: #131b24d1;
+  border-radius: 18px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 20px;
+  display: flex;
+}
+
+.brand {
+  align-items: center;
+  gap: 12px;
+  display: flex;
+}
+
+.brand-mark {
+  background: var(--accent);
+  border-radius: 999px;
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 24px #4cb6ff8c;
+}
+
+.nav-links {
+  color: var(--muted);
+  gap: 16px;
+  display: flex;
+}
+
+.hero {
+  grid-template-columns: 1.2fr .8fr;
+  gap: 20px;
+  margin-top: 24px;
+  display: grid;
+}
+
+.hero-panel, .docs-layout .sidebar, .docs-layout article, .search-panel {
+  border: 1px solid var(--border);
+  background: #131b24e0;
+  border-radius: 22px;
+}
+
+.hero-panel {
+  padding: 28px;
+}
+
+.hero h1 {
+  margin: 0 0 12px;
+  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  line-height: .95;
+}
+
+.hero p, .muted {
+  color: var(--muted);
+}
+
+.feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+  display: grid;
+}
+
+.feature-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.search-panel {
+  padding: 20px;
+}
+
+.search-label {
+  margin-bottom: 10px;
+  font-weight: 600;
+  display: block;
+}
+
+.search-input {
+  border: 1px solid var(--border);
+  width: 100%;
+  color: var(--text);
+  background: #0d141d;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.search-results {
+  gap: 10px;
+  margin-top: 14px;
+  display: grid;
+}
+
+.search-result {
+  background: var(--bg-soft);
+  border-radius: 14px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  display: flex;
+}
+
+.docs-layout {
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  margin-top: 24px;
+  display: grid;
+}
+
+.docs-layout .sidebar {
+  height: fit-content;
+  padding: 18px;
+  position: sticky;
+  top: 24px;
+}
+
+.sidebar nav {
+  gap: 8px;
+  display: grid;
+}
+
+.sidebar a {
+  color: var(--muted);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.sidebar a:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.docs-layout article {
+  padding: 28px;
+}
+
+.breadcrumbs, .pager {
+  color: var(--muted);
+  flex-wrap: wrap;
+  gap: 10px;
+  display: flex;
+}
+
+.section-label {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  display: inline-flex;
+}
+
+.example-card {
+  border: 1px solid var(--border);
+  background: #0c131c;
+  border-radius: 18px;
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.example-result-label {
+  color: var(--accent);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  font-size: .86rem;
+  font-weight: 700;
+}
+
+.example-result {
+  background: #0e1824;
+  border-color: #2b4664;
+}
+
+pre {
+  font-family: var(--mono);
+  background: #091018;
+  border: 1px solid #1f2d3f;
+  border-radius: 14px;
+  margin: 0;
+  padding: 16px;
+  font-size: .94rem;
+  overflow-x: auto;
+}
+
+code {
+  font-family: var(--mono);
+}
+
+.pager {
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.pager a {
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  border-radius: 16px;
+  flex: 1;
+  padding: 14px;
+}
+
+@media (max-width: 900px) {
+  .hero, .docs-layout, .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*# sourceMappingURL=src_app_globals_0p2ml0n.css.map*/

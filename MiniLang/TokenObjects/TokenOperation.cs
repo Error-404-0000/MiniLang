@@ -69,6 +69,8 @@
         @typeof,
         [ValueContainer(false, "give")]
         give,
+        [ValueContainer(false, "in")]
+        In,
         #endregion
 
         #region Conditions
@@ -81,6 +83,8 @@
         @else,
         [ValueContainer(false, "while")]
         While,
+        [ValueContainer(false, "foreach")]
+        Foreach,
         #endregion
         #region Return Types operators
         [ValueContainer(false,"nothing")]
@@ -91,6 +95,8 @@
         ReturnsString,
         [ValueContainer(false, "object")]
         ReturnsObject,
+        [ValueContainer(false, "array")]
+        ReturnsArray,
         #endregion
 
 
@@ -102,8 +108,12 @@
         #endregion
 
         #region Talks to c# directly
+        Enum,
         [ValueContainer(false, "cscall")]
         Cscall,
+        [ValueContainer(false, "win")]
+        Win,
+        IndexAccess,
         #endregion
 
         #region Shorten

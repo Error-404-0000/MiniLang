@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MiniLang.Studio (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "MiniLang.Studio (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
