@@ -66,7 +66,7 @@ module Debugger =
                 builder.AppendLine($"{nextIndent}└── [Else]") |> ignore
                 writeBlock noBody (nextIndent + "    ") true builder
         | Statement.Fn(name, parameters, body) ->
-            let signature = $"{name}({System.String.Join(", ", parameters)})"
+            let signature = $"{name}({System.String.Join(',', parameters)})"
             builder.AppendLine($"{branch}[Fn {signature}]") |> ignore
             writeBlock body nextIndent true builder
         | Statement.ExprStatement expr ->

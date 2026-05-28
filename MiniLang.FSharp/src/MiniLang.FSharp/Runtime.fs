@@ -76,16 +76,16 @@ module Runtime =
             | Expr.Identifier name ->
                 match scope.TryGetValue name with
                 | Some value -> return value
-                | None -> raise (RuntimeException($"Variable '{name}' not found"))
+                | None -> return raise (RuntimeException($"Variable '{name}' not found"))
             | Expr.TypeOf name ->
                 match scope.TryGetValue name with
                 | Some value -> return Value.Text(valueTypeName value)
-                | None -> raise (RuntimeException($"Variable '{name}' not found"))
+                | None -> return raise (RuntimeException($"Variable '{name}' not found"))
             | Expr.Await nested ->
                 let! value = evalExpr scope nested
                 match value with
                 | Value.Future job -> return! job
-                | _ -> raise (RuntimeException("await can only be used with future values"))
+                | _ -> return raise (RuntimeException("await can only be used with future values"))
             | Expr.Binary(left, op, right) ->
                 let! leftValue = evalExpr scope left
                 let! rightValue = evalExpr scope right
@@ -97,8 +97,8 @@ module Runtime =
                     | "/" -> Value.Number(asNumber leftValue / asNumber rightValue)
                     | "%" -> Value.Number(asNumber leftValue % asNumber rightValue)
                     | "^" -> Value.Number(Math.Pow(asNumber leftValue, asNumber rightValue))
-                    | "==" -> Value.Bool(leftValue = rightValue)
-                    | "!=" -> Value.Bool(leftValue <> rightValue)
+                   // | "==" -> Value.Bool(leftValue = rightValue)
+                    //| "!=" -> Value.Bool(leftValue <> rightValue)
                     | ">" -> Value.Bool(asNumber leftValue > asNumber rightValue)
                     | "<" -> Value.Bool(asNumber leftValue < asNumber rightValue)
                     | ">=" -> Value.Bool(asNumber leftValue >= asNumber rightValue)
@@ -129,7 +129,7 @@ module Runtime =
                     return Value.Text(valueTypeName value)
                 | _ ->
                     match scope.TryGetFunction name with
-                    | None -> raise (RuntimeException($"Function '{name}' not found"))
+                    | None -> return raise (RuntimeException($"Function '{name}' not found"))
                     | Some fn ->
                         if fn.Parameters.Length <> args.Length then
                             raise (RuntimeException($"Function '{name}' expects {fn.Parameters.Length} arguments"))
@@ -151,7 +151,7 @@ module Runtime =
             | Statement.Set(name, op, expr) ->
                 let! value = evalExpr scope expr
                 match scope.TryGetValue name with
-                | None -> raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
+                | None -> return raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
                 | Some current ->
                     let newValue =
                         match op with
@@ -170,7 +170,7 @@ module Runtime =
                     return None
             | Statement.Shorten(name, op) ->
                 match scope.TryGetValue name with
-                | None -> raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
+                | None -> return raise (RuntimeException($"Variable '{name}' not declared in the current scope."))
                 | Some current ->
                     let delta = if op = "++" then 1.0 else -1.0
                     let newValue = Value.Number(asNumber current + delta)

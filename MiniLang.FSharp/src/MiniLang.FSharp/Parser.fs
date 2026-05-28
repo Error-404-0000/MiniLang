@@ -78,7 +78,7 @@ module Parser =
 
     and private parseExponent state =
         let mutable expr = parsePrimary state
-        while check TokenKind.Operator None state && ["^"].Contains((current state).Lexeme) do
+        while check TokenKind.Operator None state && List.contains (current state).Lexeme   ["^"] do
             let op = (advance state).Lexeme
             let right = parsePrimary state
             expr <- Expr.Binary(expr, op, right)
@@ -86,7 +86,7 @@ module Parser =
 
     and private parseFactor state =
         let mutable expr = parseExponent state
-        while check TokenKind.Operator None state && ["*"; "/"; "%"].Contains((current state).Lexeme) do
+        while check TokenKind.Operator None state && List.contains (current state).Lexeme  ["*"; "/"; "%"] do
             let op = (advance state).Lexeme
             let right = parseExponent state
             expr <- Expr.Binary(expr, op, right)
@@ -94,7 +94,7 @@ module Parser =
 
     and private parseTerm state =
         let mutable expr = parseFactor state
-        while check TokenKind.Operator None state && ["+"; "-"].Contains((current state).Lexeme) do
+        while check TokenKind.Operator None state && List.contains (current state).Lexeme ["+"; "-"] do
             let op = (advance state).Lexeme
             let right = parseFactor state
             expr <- Expr.Binary(expr, op, right)
@@ -102,7 +102,7 @@ module Parser =
 
     and private parseComparison state =
         let mutable expr = parseTerm state
-        while check TokenKind.Operator None state && ["=="; "!="; "<"; ">"; "<="; ">="].Contains((current state).Lexeme) do
+        while check TokenKind.Operator None state && List.contains (current state).Lexeme  ["=="; "!="; "<"; ">"; "<="; ">="] do
             let op = (advance state).Lexeme
             let right = parseTerm state
             expr <- Expr.Binary(expr, op, right)

@@ -29,9 +29,6 @@ namespace MiniLang.GrammarsAnalyers
             return true;
         }
 
-        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line, Action<Token> PushToken)
-        {
-            return tokens[0];//makes the complier happy, but this is not used in this context.
-        }
+        public Token BuildNode(Token[] tokens, ScopeObjectValueManager scopeObjectValueManager, ExpressionGrammarAnalyser expressionGrammarAnalyser, FunctionDeclarationScopeManager FunctionDeclarationManager, IGrammarInterpreter grammarInterpreter, int Line, Action<Token> PushToken) => tokens[0];//makes the complier happy, but this is not used in this context.
     }
 }

@@ -21,8 +21,8 @@ class MiniLangRuntime
 {
     public static void Main(string[] args)
     {
-        args = [null];
-        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLang_Syntax_Guide\ClassCreation.mini.c";
+        args = [null]; //testing mode
+        args[0] = @"C:\Users\Demon\source\repos\MiniLang\MiniLangGuide\MiniLang_Syntax_Guide\ClassCreation.mini.c"; //testing mode
         if (args.Length == 0)
         {
             Console.WriteLine("Usage: MiniLangRuntime <script-file>");

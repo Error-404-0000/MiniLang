@@ -1,7 +1,8 @@
 open MiniLang.FSharp
 
 [<EntryPoint>]
-let main argv =
+let main s =
+    let argv = [@"C:\Users\Demon\source\repos\MiniLangF#\MiniLangGuide\MiniLangSpaces\console.mini.py"]
     if argv.Length = 0 then
         eprintfn "Usage: minilang-fsharp <file.mini>"
         1

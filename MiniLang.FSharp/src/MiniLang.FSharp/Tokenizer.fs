@@ -20,7 +20,8 @@ module Tokenizer =
         set [ "+="; "-="; "*="; "<="; ">="; "=="; "!="; "->"; "++"; "--" ]
 
     let private isOperatorChar c =
-        "+-*/%^=!<>".Contains(c)
+        ['+'; '-'; '*'; '/'; '%'; '^'; '='; '!'; '<'; '>']
+        |> List.contains c
 
     let private emit kind lexeme line col =
         { Kind = kind; Lexeme = lexeme; Line = line; Column = col }

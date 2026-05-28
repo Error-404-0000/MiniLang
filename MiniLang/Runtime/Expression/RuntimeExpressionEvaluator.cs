@@ -85,7 +85,7 @@ namespace MiniLang.Runtime.Expression
 
         private RuntimeValue ApplyOperator(Token op, RuntimeValue left, RuntimeValue right)
         {
-            if(left.Type is TokenType.StringLiteralExpression  || right.Type is TokenType.StringLiteralExpression)
+            if((left.Type is TokenType.StringLiteralExpression  || right.Type is TokenType.StringLiteralExpression) && op.TokenOperation is TokenOperation.AddOperation)
             {
                 return new RuntimeValue(TokenType.StringLiteralExpression,TokenOperation.None,left.Value.ToString() + right.Value.ToString());
             }
